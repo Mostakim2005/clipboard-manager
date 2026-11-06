@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <!-- Version, AssemblyVersion, FileVersion come from /Directory.Build.props. -->
+  </PropertyGroup>
+  <ItemGroup>
+    <!--
+      Pinned exactly (no wildcard): a floating 8.0.* resolves differently on
+      different machines and produces MSB3277 assembly-unification warnings in
+      the test project. Bump deliberately when upgrading.
+    -->
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.11" />
+  </ItemGroup>
+</Project>

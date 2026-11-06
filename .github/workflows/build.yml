@@ -1,0 +1,98 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: build, test, package
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Read version
+        id: ver
+        shell: pwsh
+        run: |
+          $match = [regex]::Match((Get-Content Directory.Build.props -Raw), '<Version>(\d+\.\d+\.\d+)</Version>')
+          if (-not $match.Success) { throw "Version not found in Directory.Build.props" }
+          $version = $match.Groups[1].Value
+          "version=$version" >> $env:GITHUB_OUTPUT
+          Write-Host "Version: $version"
+
+      - name: Restore
+        run: dotnet restore ClipboardApp.sln
+
+      - name: Build (Release)
+        run: dotnet build ClipboardApp.sln -c Release --no-restore
+
+      - name: Test
+        run: dotnet test ClipboardApp.sln -c Release --no-build --logger "trx;LogFileName=test-results.trx"
+
+      - name: Publish portable executable
+        shell: pwsh
+        run: |
+          $version = "${{ steps.ver.outputs.version }}"
+          dotnet publish src/ClipboardApp.WinForms/ClipboardApp.WinForms.csproj `
+            -c Release -r win-x64 --self-contained `
+            -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:Version=$version `
+            -o publish
+          if ($LASTEXITCODE -ne 0) { throw "Portable publish failed." }
+          $out = "dist/ClipboardApp-v$version-Portable.exe"
+          New-Item -ItemType Directory -Path dist -Force | Out-Null
+          Copy-Item publish/ClipboardApp.exe $out -Force
+          $hash = (Get-FileHash $out -Algorithm SHA256).Hash
+          "$hash  $(Split-Path -Leaf $out)" | Set-Content dist/SHA256SUMS.txt -Encoding UTF8
+          Write-Host "Artifact: $out"
+          Write-Host "SHA256:   $hash"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: "**/test-results.trx"
+          if-no-files-found: ignore
+
+      - name: Upload portable artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ClipboardApp-portable-${{ steps.ver.outputs.version }}
+          path: |
+            dist/ClipboardApp-*-Portable.exe
+            dist/SHA256SUMS.txt
+          if-no-files-found: error
+
+      - name: Attach artifacts to release
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "${{ github.ref_name }}"
+          gh release view $tag 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag --title "ClipboardApp $tag" --generate-notes
+          }
+          gh release upload $tag dist/*.exe dist/SHA256SUMS.txt --clobber

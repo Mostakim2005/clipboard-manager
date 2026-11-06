@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <AssemblyName>ClipboardApp</AssemblyName>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <!-- Version, AssemblyVersion, FileVersion come from /Directory.Build.props. -->
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <ApplicationIcon>Resources\app.ico</ApplicationIcon>
+    <Product>ClipboardApp</Product>
+    <Company>OpenCode</Company>
+    <Description>ClipboardApp — privacy-first Windows clipboard manager</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ClipboardApp.Core\ClipboardApp.Core.csproj" />
+    <EmbeddedResource Include="Resources\app.ico" LogicalName="ClipboardApp.WinForms.Resources.app.ico" />
+  </ItemGroup>
+</Project>

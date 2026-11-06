@@ -1,0 +1,70 @@
+# ---------------------------------------------------------------------------
+# Secrets and private keys — never commit
+# ---------------------------------------------------------------------------
+.env
+*.env
+*.pem
+*.key
+*.pfx
+*.p12
+secrets.json
+appsettings.*.local.json
+*.secret
+
+# ---------------------------------------------------------------------------
+# Heavy dependencies
+# ---------------------------------------------------------------------------
+node_modules/
+packages/
+vendor/
+
+# ---------------------------------------------------------------------------
+# Build outputs and generated binaries
+# ---------------------------------------------------------------------------
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+publish/
+dist/
+build/
+out/
+artifacts/
+*.exe
+*.dll
+*.pdb
+*.bin
+*.zip
+*.7z
+*.msi
+*.msix
+*.nupkg
+
+# ---------------------------------------------------------------------------
+# Visual Studio / Rider / editor state
+# ---------------------------------------------------------------------------
+.vs/
+.vscode/
+.idea/
+*.user
+*.userosscache
+*.suo
+*.userprefs
+*.sln.docstates
+
+# ---------------------------------------------------------------------------
+# OS and temporary files
+# ---------------------------------------------------------------------------
+Thumbs.db
+Desktop.ini
+.DS_Store
+*.log
+*.tmp
+*.temp
+*.bak
+TestResults/
+.ui-shots/

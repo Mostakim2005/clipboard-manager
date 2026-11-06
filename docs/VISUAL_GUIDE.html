@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ClipboardApp — Visual Guide</title>
+<style>
+  :root {
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", Inter, system-ui, sans-serif;
+    --mono: "Cascadia Code", ui-monospace, SFMono-Regular, Consolas, monospace;
+    --radius: 14px;
+    --radius-sm: 9px;
+    --maxw: 1180px;
+    --t: 180ms cubic-bezier(.4,0,.2,1);
+  }
+  html[data-theme="dark"] {
+    --bg: #0b0f16;
+    --bg-2: #101623;
+    --panel: #141b29;
+    --panel-2: #1a2233;
+    --line: #253048;
+    --line-soft: #1c2537;
+    --text: #e8eef7;
+    --muted: #93a3bb;
+    --faint: #6b7b93;
+    --accent: #7c9cff;
+    --accent-2: #a78bfa;
+    --accent-soft: rgba(124,156,255,.13);
+    --good: #4ade80;
+    --warn: #fbbf24;
+    --bad: #fb7185;
+    --shadow: 0 18px 44px rgba(0,0,0,.44);
+    --glow: radial-gradient(900px 420px at 12% -10%, rgba(124,156,255,.16), transparent 60%),
+            radial-gradient(700px 380px at 96% 0%, rgba(167,139,250,.13), transparent 62%);
+  }
+  html[data-theme="light"] {
+    --bg: #f5f7fc;
+    --bg-2: #eef2fa;
+    --panel: #ffffff;
+    --panel-2: #f8faff;
+    --line: #d9e1f0;
+    --line-soft: #e8edf7;
+    --text: #16203a;
+    --muted: #55637d;
+    --faint: #7b879c;
+    --accent: #3b5bdb;
+    --accent-2: #7048e8;
+    --accent-soft: rgba(59,91,219,.09);
+    --good: #12864b;
+    --warn: #a86200;
+    --bad: #c0324c;
+    --shadow: 0 14px 34px rgba(22,32,58,.10);
+    --glow: radial-gradient(900px 420px at 12% -10%, rgba(59,91,219,.10), transparent 60%),
+            radial-gradient(700px 380px at 96% 0%, rgba(112,72,232,.08), transparent 62%);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    background-image: var(--glow);
+    background-attachment: fixed;
+    color: var(--text);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    transition: background-color var(--t), color var(--t);
+  }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 22px 80px; }
+
+  /* ---------- header ---------- */
+  header.top {
+    position: sticky; top: 0; z-index: 40;
+    backdrop-filter: blur(14px);
+    background: color-mix(in srgb, var(--bg) 82%, transparent);
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .top-inner {
+    max-width: var(--maxw); margin: 0 auto; padding: 12px 22px;
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  }
+  .brand { display: flex; align-items: center; gap: 11px; margin-right: auto; }
+  .logo {
+    width: 34px; height: 34px; border-radius: 10px; flex: 0 0 auto;
+    background: linear-gradient(145deg, var(--accent), var(--accent-2));
+    display: grid; place-items: center;
+    box-shadow: 0 6px 16px color-mix(in srgb, var(--accent) 35%, transparent);
+  }
+  .logo svg { width: 18px; height: 18px; stroke: #fff; fill: none; stroke-width: 1.9; }
+  .brand-txt b { display: block; font-size: 15px; letter-spacing: -.01em; line-height: 1.2; }
+  .brand-txt span { display: block; font-size: 11.5px; color: var(--faint); letter-spacing: .04em; text-transform: uppercase; }
+  .pill-ver {
+    font-size: 11.5px; font-weight: 650; padding: 3px 9px; border-radius: 999px;
+    background: var(--accent-soft); color: var(--accent);
+    border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+    font-family: var(--mono); letter-spacing: .02em;
+  }
+  .theme-toggle {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--panel); color: var(--text);
+    border: 1px solid var(--line); border-radius: 999px;
+    padding: 7px 13px; font: inherit; font-size: 12.5px; font-weight: 550;
+    cursor: pointer; transition: all var(--t);
+  }
+  .theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+  .theme-toggle svg { width: 15px; height: 15px; }
+
+  /* ---------- tabs ---------- */
+  nav.tabs {
+    max-width: var(--maxw); margin: 0 auto;
+    display: flex; gap: 4px; padding: 10px 22px 0; overflow-x: auto; scrollbar-width: none;
+  }
+  nav.tabs::-webkit-scrollbar { display: none; }
+  .tab {
+    appearance: none; background: transparent; border: 0; border-bottom: 2px solid transparent;
+    color: var(--muted); font: inherit; font-size: 13.5px; font-weight: 600;
+    padding: 10px 14px; cursor: pointer; white-space: nowrap;
+    transition: color var(--t), border-color var(--t);
+  }
+  .tab:hover { color: var(--text); }
+  .tab[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* ---------- hero ---------- */
+  .hero { padding: 44px 0 8px; }
+  .hero h1 {
+    font-size: clamp(28px, 4.2vw, 46px); line-height: 1.1;
+    letter-spacing: -.032em; margin: 0 0 14px; font-weight: 740;
+  }
+  .hero h1 em {
+    font-style: normal;
+    background: linear-gradient(96deg, var(--accent), var(--accent-2));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .hero p.lede { font-size: 16.5px; color: var(--muted); max-width: 68ch; margin: 0 0 26px; }
+
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(158px, 1fr)); gap: 12px; margin-bottom: 10px; }
+  .stat {
+    background: linear-gradient(170deg, var(--panel), var(--panel-2));
+    border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 15px 16px; box-shadow: var(--shadow);
+  }
+  .stat b { display: block; font-size: 24px; letter-spacing: -.03em; font-weight: 720; }
+  .stat span { display: block; font-size: 11.8px; color: var(--faint); text-transform: uppercase; letter-spacing: .07em; margin-top: 3px; font-weight: 600; }
+  .stat.accent b { color: var(--accent); }
+  .stat.good b { color: var(--good); }
+
+  /* ---------- panels / sections ---------- */
+  section.panel { display: none; animation: rise 300ms cubic-bezier(.4,0,.2,1); }
+  section.panel.active { display: block; }
+  @keyframes rise { from { opacity: 0; transform: translateY(9px); } to { opacity: 1; transform: none; } }
+
+  h2.sec {
+    font-size: 12px; text-transform: uppercase; letter-spacing: .13em;
+    color: var(--faint); font-weight: 700; margin: 38px 0 14px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  h2.sec::after { content: ""; flex: 1; height: 1px; background: var(--line-soft); }
+
+  .card {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 20px 22px;
+  }
+  .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 14px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(232px, 1fr)); gap: 13px; }
+
+  /* ---------- feature cards ---------- */
+  .feat {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 16px 17px; transition: transform var(--t), border-color var(--t), box-shadow var(--t);
+    position: relative; overflow: hidden;
+  }
+  .feat::before {
+    content: ""; position: absolute; inset: 0 auto 0 0; width: 3px;
+    background: linear-gradient(180deg, var(--accent), var(--accent-2));
+    opacity: 0; transition: opacity var(--t);
+  }
+  .feat:hover { transform: translateY(-3px); border-color: color-mix(in srgb, var(--accent) 42%, var(--line)); box-shadow: var(--shadow); }
+  .feat:hover::before { opacity: 1; }
+  .feat .ic {
+    width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center;
+    background: var(--accent-soft); color: var(--accent); margin-bottom: 11px;
+    font-size: 15px;
+  }
+  .feat h3 { margin: 0 0 6px; font-size: 14.5px; font-weight: 660; letter-spacing: -.012em; }
+  .feat p { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.58; }
+  .feat .tags { margin-top: 11px; display: flex; flex-wrap: wrap; gap: 5px; }
+  .tag {
+    font-size: 10.5px; font-weight: 650; letter-spacing: .02em;
+    padding: 2.5px 8px; border-radius: 999px;
+    background: var(--bg-2); color: var(--faint); border: 1px solid var(--line-soft);
+    font-family: var(--mono);
+  }
+  .tag.on { color: var(--good); border-color: color-mix(in srgb, var(--good) 35%, transparent); background: color-mix(in srgb, var(--good) 12%, transparent); }
+
+  /* ---------- architecture ---------- */
+  .layers { display: flex; flex-direction: column; gap: 9px; }
+  .layer {
+    border: 1px solid var(--line); border-radius: var(--radius-sm);
+    padding: 13px 16px; background: var(--panel);
+    display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap;
+  }
+  .layer .lname {
+    flex: 0 0 132px; font-size: 12px; font-weight: 750; letter-spacing: .07em;
+    text-transform: uppercase; color: var(--accent); padding-top: 2px;
+  }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; }
+  .chip {
+    font-family: var(--mono); font-size: 11.5px; padding: 4px 9px;
+    border-radius: 6px; background: var(--bg-2); color: var(--text);
+    border: 1px solid var(--line-soft);
+  }
+  .layer.ui { border-left: 3px solid var(--accent); }
+  .layer.core { border-left: 3px solid var(--accent-2); }
+  .layer.data { border-left: 3px solid var(--good); }
+  .layer.infra { border-left: 3px solid var(--warn); }
+
+  .flow { display: flex; flex-direction: column; gap: 0; }
+  .step {
+    display: flex; gap: 14px; padding: 12px 0; align-items: flex-start;
+    border-bottom: 1px dashed var(--line-soft);
+  }
+  .step:last-child { border-bottom: 0; }
+  .step .num {
+    flex: 0 0 25px; height: 25px; border-radius: 50%; display: grid; place-items: center;
+    background: var(--accent-soft); color: var(--accent); font-size: 11.5px; font-weight: 750;
+  }
+  .step .body b { display: block; font-size: 13.5px; margin-bottom: 2px; }
+  .step .body span { font-size: 12.8px; color: var(--muted); }
+  .step.danger .num { background: color-mix(in srgb, var(--bad) 15%, transparent); color: var(--bad); }
+  .step.ok .num { background: color-mix(in srgb, var(--good) 15%, transparent); color: var(--good); }
+
+  /* ---------- decisions ---------- */
+  .dec {
+    border: 1px solid var(--line); border-radius: var(--radius);
+    background: var(--panel); padding: 17px 19px; margin-bottom: 12px;
+  }
+  .dec-head { display: flex; gap: 10px; align-items: flex-start; flex-wrap: wrap; margin-bottom: 7px; }
+  .dec-head h3 { margin: 0; font-size: 14.5px; font-weight: 680; letter-spacing: -.012em; flex: 1; min-width: 200px; }
+  .who {
+    font-size: 10px; font-weight: 750; letter-spacing: .09em; text-transform: uppercase;
+    padding: 3px 8px; border-radius: 5px; white-space: nowrap;
+  }
+  .who.human { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); }
+  .who.agent { background: color-mix(in srgb, var(--accent-2) 16%, transparent); color: var(--accent-2); }
+  .dec p { margin: 0 0 8px; font-size: 13px; color: var(--muted); }
+  .dec p:last-child { margin-bottom: 0; }
+  .dec .why { color: var(--text); font-size: 12.8px; }
+  .dec .rule {
+    margin-top: 10px; font-size: 12.6px; padding: 9px 12px; border-radius: var(--radius-sm);
+    background: var(--bg-2); border-left: 2px solid var(--warn); color: var(--muted);
+  }
+  .dec .rule b { color: var(--text); }
+  .trap-flag {
+    font-size: 10px; font-weight: 750; letter-spacing: .09em; text-transform: uppercase;
+    color: var(--bad); background: color-mix(in srgb, var(--bad) 14%, transparent);
+    padding: 3px 8px; border-radius: 5px;
+  }
+
+  /* ---------- roadmap ---------- */
+  .wish {
+    border: 1px dashed var(--line); border-radius: var(--radius);
+    padding: 16px 18px; background: color-mix(in srgb, var(--panel) 60%, transparent);
+  }
+  .wish h3 { margin: 0 0 6px; font-size: 14px; font-weight: 660; color: var(--text); }
+  .wish p { margin: 0; font-size: 12.8px; color: var(--muted); }
+  .wish .status {
+    display: inline-block; margin-top: 10px; font-size: 10.5px; font-weight: 700;
+    letter-spacing: .07em; text-transform: uppercase; color: var(--warn);
+  }
+
+  footer.foot {
+    max-width: var(--maxw); margin: 46px auto 0; padding: 20px 22px 0;
+    border-top: 1px solid var(--line-soft);
+    display: flex; justify-content: space-between; gap: 14px; flex-wrap: wrap;
+    font-size: 12px; color: var(--faint);
+  }
+  footer.foot a { color: var(--accent); text-decoration: none; }
+  footer.foot a:hover { text-decoration: underline; }
+  code { font-family: var(--mono); font-size: .92em; background: var(--bg-2); padding: 1.5px 5px; border-radius: 4px; border: 1px solid var(--line-soft); }
+
+  @media (max-width: 620px) {
+    .hero { padding-top: 30px; }
+    .layer .lname { flex-basis: 100%; }
+    .brand-txt span { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-inner">
+    <div class="brand">
+      <div class="logo" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V5.5A2.5 2.5 0 0 0 13.5 3h-8A2.5 2.5 0 0 0 3 5.5v8A2.5 2.5 0 0 0 5.5 16H8"/></svg>
+      </div>
+      <div class="brand-txt">
+        <b>ClipboardApp</b>
+        <span>Visual Guide</span>
+      </div>
+      <span class="pill-ver">v3.1.0</span>
+    </div>
+    <button class="theme-toggle" id="themeBtn" type="button" aria-label="Switch colour theme">
+      <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.6v2.2M12 19.2v2.2M2.6 12h2.2M19.2 12h2.2M5.4 5.4l1.6 1.6M17 17l1.6 1.6M18.6 5.4L17 7M7 17l-1.6 1.6"/></svg>
+      <span id="themeLabel">Light</span>
+    </button>
+  </div>
+  <nav class="tabs" role="tablist" aria-label="Guide sections">
+    <button class="tab" role="tab" data-tab="overview" aria-selected="true">Overview</button>
+    <button class="tab" role="tab" data-tab="features" aria-selected="false">Features</button>
+    <button class="tab" role="tab" data-tab="architecture" aria-selected="false">Architecture</button>
+    <button class="tab" role="tab" data-tab="decisions" aria-selected="false">Decisions &amp; Traps</button>
+    <button class="tab" role="tab" data-tab="roadmap" aria-selected="false">Roadmap</button>
+  </nav>
+</header>
+
+<div class="wrap">
+
+  <!-- ================= OVERVIEW ================= -->
+  <section class="panel active" id="panel-overview" role="tabpanel">
+    <div class="hero">
+      <h1>A private, keyboard-first <em>clipboard manager</em> for Windows.</h1>
+      <p class="lede">Everything you copy — text, links, colours, files, images — stays on your machine, encrypted at rest with Windows DPAPI. One hotkey, find it, paste it into the right window, and never lose your place.</p>
+    </div>
+
+    <div class="stats">
+      <div class="stat accent"><b>3.1.0</b><span>Current version</span></div>
+      <div class="stat good"><b>116/116</b><span>Tests passing</span></div>
+      <div class="stat"><b>0</b><span>Telemetry events</span></div>
+      <div class="stat"><b>Portable</b><span>Default deliverable</span></div>
+    </div>
+
+    <h2 class="sec">The Three Promises</h2>
+    <div class="grid-3">
+      <div class="feat">
+        <div class="ic">🔒</div>
+        <h3>Nothing leaves the PC</h3>
+        <p>Local SQLite, DPAPI-encrypted content and images, no account, no network calls. Password-manager clips are ignored before they are ever stored.</p>
+        <div class="tags"><span class="tag on">local-only</span><span class="tag">DPAPI</span></div>
+      </div>
+      <div class="feat">
+        <div class="ic">🎯</div>
+        <h3>Never paste into the wrong window</h3>
+        <p>Paste verifies the target owns the foreground before sending Ctrl+V. If it cannot prove the target, it copies instead of guessing.</p>
+        <div class="tags"><span class="tag on">target-verified</span><span class="tag">SendInput</span></div>
+      </div>
+      <div class="feat">
+        <div class="ic">🧊</div>
+        <h3>The list never jumps</h3>
+        <p>New copies are saved in the background. The list you are reading stays exactly where it is, so "item 3" is always item 3.</p>
+        <div class="tags"><span class="tag on">stable snapshot</span><span class="tag">#1–#9</span></div>
+      </div>
+    </div>
+
+    <h2 class="sec">Documentation Map</h2>
+    <div class="grid-2">
+      <div class="card">
+        <h3 style="margin:0 0 8px;font-size:15px;">PRODUCT.md</h3>
+        <p style="margin:0;font-size:13px;color:var(--muted);">What the app should do for the user, written in plain English with a non-negotiable intention behind every feature. This is the source of truth, not the code.</p>
+      </div>
+      <div class="card">
+        <h3 style="margin:0 0 8px;font-size:15px;">ARCHITECTURE.md</h3>
+        <p style="margin:0;font-size:13px;color:var(--muted);">Tech stack, layer map, capture and paste flows, data model, security boundaries, and recipes for extending safely.</p>
+      </div>
+      <div class="card">
+        <h3 style="margin:0 0 8px;font-size:15px;">DECISIONS_AND_TRAPS.md</h3>
+        <p style="margin:0;font-size:13px;color:var(--muted);">What was tried and rejected, who decided, and the landmines that will silently break the app if touched.</p>
+      </div>
+      <div class="card">
+        <h3 style="margin:0 0 8px;font-size:15px;">VISUAL_GUIDE.html</h3>
+        <p style="margin:0;font-size:13px;color:var(--muted);">This dashboard. Self-contained, works offline, readable in a browser without any build step.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= FEATURES ================= -->
+  <section class="panel" id="panel-features" role="tabpanel">
+    <div class="hero" style="padding-bottom:0;">
+      <h1 style="font-size:clamp(24px,3.4vw,36px);">Active features</h1>
+      <p class="lede">Every card below is shipped and covered by tests. These are the behaviours that must not regress.</p>
+    </div>
+    <div class="grid-3" id="featureGrid" style="margin-top:24px;"></div>
+  </section>
+
+  <!-- ================= ARCHITECTURE ================= -->
+  <section class="panel" id="panel-architecture" role="tabpanel">
+    <div class="hero" style="padding-bottom:0;">
+      <h1 style="font-size:clamp(24px,3.4vw,36px);">How it is built</h1>
+      <p class="lede">Four layers, one direction of dependency, and two flows that must stay boring.</p>
+    </div>
+
+    <h2 class="sec">Layer Map</h2>
+    <div class="layers">
+      <div class="layer ui">
+        <div class="lname">UI</div>
+        <div class="chips">
+          <span class="chip">MainForm.cs</span><span class="chip">MainForm.Ui</span><span class="chip">MainForm.Paste</span>
+          <span class="chip">MainForm.Dialogs</span><span class="chip">MainForm.Filters</span><span class="chip">ModernCardList</span>
+          <span class="chip">GridCardList</span><span class="chip">RichPreviewPanel</span><span class="chip">UiStyler</span>
+        </div>
+      </div>
+      <div class="layer core">
+        <div class="lname">Core</div>
+        <div class="chips">
+          <span class="chip">ClipboardMonitor</span><span class="chip">PasteService</span><span class="chip">BatchPasteService</span>
+          <span class="chip">BatchCopyService</span><span class="chip">RichMergeService</span><span class="chip">SearchService</span>
+          <span class="chip">FilterService</span><span class="chip">ClipboardContentIdentity</span><span class="chip">TextTransformService</span>
+        </div>
+      </div>
+      <div class="layer data">
+        <div class="lname">Storage</div>
+        <div class="chips">
+          <span class="chip">SqliteClipboardRepository</span><span class="chip">ApiKeyRepository</span>
+          <span class="chip">DataProtector</span><span class="chip">ApiVaultService</span><span class="chip">ClipboardPrivacyFilter</span>
+        </div>
+      </div>
+      <div class="layer infra">
+        <div class="lname">Interop</div>
+        <div class="chips">
+          <span class="chip">NativeMethods</span><span class="chip">TargetWindowTracker</span><span class="chip">PasteTargetInspector</span>
+          <span class="chip">HotkeyManager</span><span class="chip">Settings</span><span class="chip">AppVersion</span>
+        </div>
+      </div>
+    </div>
+
+    <h2 class="sec">Capture Flow</h2>
+    <div class="card">
+      <div class="flow">
+        <div class="step"><div class="num">1</div><div class="body"><b>Clipboard changes</b><span>Windows sends <code>WM_CLIPBOARDUPDATE</code> to <code>ClipboardMonitor</code>.</span></div></div>
+        <div class="step danger"><div class="num">2</div><div class="body"><b>Self-write check</b><span>If the app wrote the clipboard itself, stop — otherwise it would capture its own paste and loop.</span></div></div>
+        <div class="step"><div class="num">3</div><div class="body"><b>Privacy filter</b><span>Ignored apps and password-manager privacy flags are rejected before anything is read.</span></div></div>
+        <div class="step"><div class="num">4</div><div class="body"><b>Format priority</b><span>File drop → image → text → HTML → RTF. The richest safe representation wins.</span></div></div>
+        <div class="step"><div class="num">5</div><div class="body"><b>Identity + dedupe</b><span>Type-prefixed SHA-256 decides whether this is new, a recopy, or a duplicate.</span></div></div>
+        <div class="step ok"><div class="num">6</div><div class="body"><b>Store, do not rebuild</b><span>The entry is encrypted and saved. The visible list is marked stale but left untouched.</span></div></div>
+      </div>
+    </div>
+
+    <h2 class="sec">Paste Flow</h2>
+    <div class="card">
+      <div class="flow">
+        <div class="step"><div class="num">1</div><div class="body"><b>Build payload</b><span>Single entry, merged batch, or sequential queue — plain or rich.</span></div></div>
+        <div class="step"><div class="num">2</div><div class="body"><b>Resolve target</b><span>The previously active window is checked; a stale or invalid target opens the picker.</span></div></div>
+        <div class="step"><div class="num">3</div><div class="body"><b>Write clipboard</b><span>Self-capture suppression is set for the duration of the write.</span></div></div>
+        <div class="step"><div class="num">4</div><div class="body"><b>Verify foreground</b><span>If the target does not own the foreground, the app copies and stays visible.</span></div></div>
+        <div class="step"><div class="num">5</div><div class="body"><b>Keys released</b><span>Waits out physical modifier keys so the synthetic Ctrl+V is not corrupted.</span></div></div>
+        <div class="step ok"><div class="num">6</div><div class="body"><b>Send Ctrl+V</b><span>Raw <code>SendInput</code> with a 40-byte x64 struct. Result checked before success is claimed.</span></div></div>
+      </div>
+    </div>
+
+    <h2 class="sec">Security Boundary</h2>
+    <div class="grid-2">
+      <div class="card">
+        <h3 style="margin:0 0 10px;font-size:14.5px;">Clipboard history</h3>
+        <p style="margin:0;font-size:13px;color:var(--muted);">Sensitive detection and ignored-app rules run <b>before</b> storage. Allowed content is encrypted with DPAPI CurrentUser, so the database is useless without the signed-in Windows account. Sensitive clips mask in the UI and expire automatically.</p>
+      </div>
+      <div class="card">
+        <h3 style="margin:0 0 10px;font-size:14.5px;">API key vault</h3>
+        <p style="margin:0;font-size:13px;color:var(--muted);">AES-256-GCM records behind a DPAPI-wrapped vault key, with optional master password and timed unlock. Keys never enter history, search, or batch copy. Key material is zeroed when the vault closes.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= DECISIONS ================= -->
+  <section class="panel" id="panel-decisions" role="tabpanel">
+    <div class="hero" style="padding-bottom:0;">
+      <h1 style="font-size:clamp(24px,3.4vw,36px);">Decisions &amp; traps</h1>
+      <p class="lede">The engineering memory: what we rejected, who decided, and what will break if you "clean it up".</p>
+    </div>
+
+    <h2 class="sec">Product Decisions</h2>
+    <div id="decisionList"></div>
+
+    <h2 class="sec">Landmines — Do Not Touch</h2>
+    <div id="trapList"></div>
+  </section>
+
+  <!-- ================= ROADMAP ================= -->
+  <section class="panel" id="panel-roadmap" role="tabpanel">
+    <div class="hero" style="padding-bottom:0;">
+      <h1 style="font-size:clamp(24px,3.4vw,36px);">Wishlist</h1>
+      <p class="lede">Direction, not promises. Nothing here is built until the safety model above can be preserved.</p>
+    </div>
+    <div class="grid-2" style="margin-top:24px;">
+      <div class="wish">
+        <h3>Encrypted multi-device sync</h3>
+        <p>Keep history on a second PC without a plaintext server copy. Must reuse the DPAPI/encryption layer end to end.</p>
+        <span class="status">Not started</span>
+      </div>
+      <div class="wish">
+        <h3>Plugin / script actions</h3>
+        <p>Add explicit, permissioned actions to selected clips — without turning the app into a default scripting host.</p>
+        <span class="status">Not started</span>
+      </div>
+      <div class="wish">
+        <h3>Local OCR for screenshots</h3>
+        <p>Search the words inside an image clip, processed locally with explicit opt-in and no cloud OCR.</p>
+        <span class="status">Not started</span>
+      </div>
+      <div class="wish">
+        <h3>Per-app capture rules</h3>
+        <p>Richer rules than a simple ignore list — e.g. images only from a design tool, never text from a terminal.</p>
+        <span class="status">Not started</span>
+      </div>
+    </div>
+
+    <h2 class="sec">Release Checklist</h2>
+    <div class="card">
+      <div class="flow">
+        <div class="step ok"><div class="num">✓</div><div class="body"><b>Release build, zero warnings</b><span><code>dotnet build ClipboardApp.sln -c Release</code></span></div></div>
+        <div class="step ok"><div class="num">✓</div><div class="body"><b>Full test suite</b><span><code>dotnet test ClipboardApp.sln -c Release</code> — 116/116</span></div></div>
+        <div class="step ok"><div class="num">✓</div><div class="body"><b>Portable artifact</b><span>Built from source, attached to a GitHub Release, never committed.</span></div></div>
+        <div class="step ok"><div class="num">✓</div><div class="body"><b>No secrets, no binaries staged</b><span><code>git status</code> reviewed before every push.</span></div></div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer class="foot">
+  <span>ClipboardApp v3.1.0 · local-first, zero telemetry</span>
+  <span>See <a href="PRODUCT.md">PRODUCT.md</a> · <a href="ARCHITECTURE.md">ARCHITECTURE.md</a> · <a href="DECISIONS_AND_TRAPS.md">DECISIONS_AND_TRAPS.md</a></span>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ---------- theme ---------- */
+  var root = document.documentElement;
+  var btn = document.getElementById("themeBtn");
+  var label = document.getElementById("themeLabel");
+
+  function applyTheme(name) {
+    root.setAttribute("data-theme", name);
+    var isDark = name === "dark";
+    label.textContent = isDark ? "Light" : "Dark";
+    try { localStorage.setItem("clipboardapp-theme", name); } catch (e) {}
+  }
+  var saved = null;
+  try { saved = localStorage.getItem("clipboardapp-theme"); } catch (e) {}
+  applyTheme(saved || "dark");
+  btn.addEventListener("click", function () {
+    applyTheme(root.getAttribute("data-theme") === "dark" ? "light" : "dark");
+  });
+
+  /* ---------- tabs ---------- */
+  var tabs = document.querySelectorAll(".tab");
+  var panels = document.querySelectorAll(".panel");
+  tabs.forEach(function (tab) {
+    tab.addEventListener("click", function () {
+      tabs.forEach(function (t) { t.setAttribute("aria-selected", String(t === tab)); });
+      panels.forEach(function (p) {
+        p.classList.toggle("active", p.id === "panel-" + tab.dataset.tab);
+      });
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+  });
+
+  /* ---------- feature data ---------- */
+  var features = [
+    { ic: "📋", t: "Capture with source tracking", d: "Text, links, colours, file lists, HTML, RTF and images are captured once and tagged with the app they came from.", tags: ["text", "images", "files"] },
+    { ic: "🧊", t: "Stable snapshot history", d: "Captures save in the background without reordering or reselecting the list you are reading.", tags: ["no jump", "FD refresh"] },
+    { ic: "#️⃣", t: "Stable serial numbers", d: "Each visible card shows #N, and the first nine double as 1–9 quick-paste shortcuts.", tags: ["#1–#9", "keyboard"] },
+    { ic: "🔍", t: "Search, filters and grouping", d: "Debounced text search, regex, format pills, permanent date/type/app filters, groups and tag search.", tags: ["regex", "filters"] },
+    { ic: "🖼️", t: "Cards plus rich inspector", d: "Fast list on the left, context-aware preview on the right — code, JSON, colour swatch, zoomable image.", tags: ["split view", "preview"] },
+    { ic: "▦", t: "List and grid parity", d: "Switch to a full-width tile grid without losing selection, filters or keyboard behaviour.", tags: ["grid", "parity"] },
+    { ic: "🎯", t: "Target-verified paste", d: "Enter pastes only after the foreground window is proven to be the intended target; otherwise it copies.", tags: ["SendInput", "safety"] },
+    { ic: "🖱️", t: "Opt-in double-click paste", d: "Off by default. When on, every double-click opens the active-app chooser before pasting.", tags: ["opt-in", "picker"] },
+    { ic: "🔀", t: "Batch merge and sequential paste", d: "Merge checked cards as Plain, .env, JSON, CSV or Rich — or paste them one after another.", tags: ["multi-select", "merge"] },
+    { ic: "🖇️", t: "Mixed text + image merge", d: "Optionally carry images inside CF_HTML/RTF, with a warning and image deselect when the target cannot accept them.", tags: ["opt-in", "rich"] },
+    { ic: "✋", t: "Armed OLE drag and drop", d: "Drag-out requires an explicit arm and disarms on blur. Never steals clicks, checkboxes or double-click.", tags: ["drag", "armed"] },
+    { ic: "🏷️", t: "Tags, aliases and autocomplete", d: "Multiple aliases and tags per entry, with frequency-ranked suggestions that only apply when accepted.", tags: ["tags", "aliases"] },
+    { ic: "🪟", t: "Persistent custom context menu", d: "Hide, show and reorder right-click commands; Customize always stays available so you cannot lock yourself out.", tags: ["menu", "persisted"] },
+    { ic: "🖼️", t: "Aspect-true image thumbnails", d: "Lazily decoded, letterboxed thumbnails with an LRU bound so long image histories stay light.", tags: ["thumbnail", "LRU"] },
+    { ic: "✏️", t: "Transform preview with undo", d: "UPPER, lower, Title, Trim, Base64, URL, JSON, slug, camel, snake — staged as a preview with Save, Cancel and Undo.", tags: ["preview", "undo"] },
+    { ic: "🔐", t: "DPAPI encryption and privacy filters", d: "Content and image bytes encrypted at rest; password-manager clips ignored; sensitive clips masked and auto-expired.", tags: ["DPAPI", "privacy"] },
+    { ic: "🗝️", t: "Encrypted API key vault", d: "AES-256-GCM store behind a DPAPI-wrapped key, optional master password and timed auto-lock.", tags: ["vault", "AES-GCM"] },
+    { ic: "💾", t: "History limits, backup and restore", d: "Bound history by count and age; export or import JSON/CSV, optionally DPAPI-encrypted, with CSV injection defence.", tags: ["limits", "export"] },
+    { ic: "⌨️", t: "Tray, hotkey and startup", d: "Starts quietly in the tray, toggles with one global shortcut captured by pressing keys, not typing them.", tags: ["hotkey", "tray"] },
+    { ic: "🎨", t: "Switchable app-wide styling", d: "Fluent, Acrylic, Classic or Native applied to every app-owned window, menu and dialog — with a native fallback.", tags: ["theme", "native"] },
+    { ic: "♿", t: "Keyboard and contrast accessibility", d: "Every primary action reachable by keyboard, WCAG AA contrast, visible focus, per-monitor V2 DPI.", tags: ["WCAG AA", "DPI"] },
+    { ic: "🏗️", t: "Reproducible build and versioning", d: "One version source, generated checksums, and a setup installer whose payload is proven byte-identical to the portable.", tags: ["version", "checksums"] }
+  ];
+
+  var grid = document.getElementById("featureGrid");
+  grid.innerHTML = features.map(function (f) {
+    return '<article class="feat">' +
+      '<div class="ic">' + f.ic + '</div>' +
+      '<h3>' + f.t + '</h3>' +
+      '<p>' + f.d + '</p>' +
+      '<div class="tags">' + f.tags.map(function (t) { return '<span class="tag on">' + t + '</span>'; }).join("") + '</div>' +
+      '</article>';
+  }).join("");
+
+  /* ---------- decisions ---------- */
+  var decisions = [
+    { t: "Local-only, no telemetry", who: "human", why: "A hosted sync backend and usage analytics were considered and rejected: they add breach surface and a login flow for a product whose whole value is that clipboard contents never leave the machine.", rule: "Any dependency that phones home is a release blocker." },
+    { t: "Portable .exe is the default deliverable", who: "human", why: "Users want to run it from a USB stick or downloads folder without admin rights. The installer adds friction and a second artifact to verify.", rule: "The installer, when built, must embed the exact portable bytes and self-verify." },
+    { t: "Risky gestures are opt-in", who: "human", why: "Double-click paste and mixed image merging both silently change what lands in another application. They are OFF by default.", rule: "A double-click must never paste into a stale window; a merge that cannot carry images must say so." },
+    { t: "Stable snapshot over live reordering", who: "human", why: "Live re-sorting on every clipboard event caused wrong-item pastes because the list moved under the cursor.", rule: "Capture writes only. ReloadSnapshot is the single full-read path." },
+    { t: "Manual drag arming", who: "human", why: "Native drag-on-mousedown stole clicks, checkboxes, marquee selection and double-click activation.", rule: "Keep the arm gate and the 8 px threshold." },
+    { t: "Target-verified paste instead of SendKeys", who: "agent", why: "SendKeys depends on journal hooks and pasted into whatever window happened to be focused.", rule: "Raw SendInput, foreground verification, and key-release wait are the safety chain." },
+    { t: "WinForms owner-drawn UI, not a web shell", who: "human", why: "The app must open instantly from a hotkey and sit quietly in the tray. No second runtime to patch.", rule: "Visual changes go through the palette/styler layer, not HTML." },
+    { t: "One version source of truth", who: "agent", why: "Hard-coded versions in three project files drifted from the installer and the tests.", rule: "Directory.Build.props is the only place a version lives." },
+    { t: "Separate encrypted API key vault", who: "human", why: "History is searchable, exportable and batch-copyable, so a key stored there leaks through normal use.", rule: "Vault storage stays isolated from the clipboard repository." },
+    { t: "Type-prefixed content hash for dedupe", who: "agent", why: "Text-only MD5 collapsed distinct image and file clips, and one forced dedupe policy annoyed users.", rule: "Only the repository decides duplicates." }
+  ];
+
+  var traps = [
+    { t: "Never set UserPaint on ModernCardList", d: "It suppresses the native WM_DRAWITEM path and renders a blank list until hover. This bug already shipped once.", rule: "No SetStyle(ControlStyles.UserPaint, true) on ModernCardList." },
+    { t: "INPUT must be 40 bytes on x64", d: "A 32-byte union makes SendInput silently return 0 — paste appears to succeed but nothing happens.", rule: "Keep InteropLayoutTests passing; do not resize the union." },
+    { t: "Self-capture loop", d: "Writing the clipboard fires WM_CLIPBOARDUPDATE, which can recapture the entry and loop.", rule: "Suppress around every clipboard write and clear the flag on failure too." },
+    { t: "Double-click activation timing", d: "Activating on mouse-down hides the window mid-gesture and can paste twice.", rule: "Detect in the card control, activate on the second mouse-up." },
+    { t: "Selection must survive rebuild", d: "Storing selection on item objects loses it when the list rebuilds; the batch bar silently empties.", rule: "Keep selected IDs outside the list and prune to existing rows." },
+    { t: "Context menu must stay recoverable", d: "A user can hide commands and lock themselves out of the menu.", rule: "Customize is non-hideable and always last." },
+    { t: "Views must stay command-identical", d: "Branching on ViewMode at each call site makes list and grid drift apart.", rule: "Route commands through MainForm.Accessor." },
+    { t: "Encoding drift corrupts the UI", d: "A Windows-1252 round-trip destroys emoji, curly quotes and box-drawing characters.", rule: "Keep UTF-8; repair with tools/fix-encoding.ps1." },
+    { t: "releases/ is not source", d: "Committing artifacts bloats the repo and ships stale binaries.", rule: "CI builds the portable; releases/ and publish/ stay gitignored." }
+  ];
+
+  function decisionCard(d) {
+    return '<article class="dec">' +
+      '<div class="dec-head"><h3>' + d.t + '</h3>' +
+      '<span class="who ' + d.who + '">' + (d.who === "human" ? "Decided by human" : "Decided by agent") + '</span></div>' +
+      '<p class="why">' + d.why + '</p>' +
+      '<div class="rule"><b>Rule:</b> ' + d.rule + '</div>' +
+      '</article>';
+  }
+  function trapCard(t) {
+    return '<article class="dec">' +
+      '<div class="dec-head"><h3>' + t.t + '</h3><span class="trap-flag">Do not touch</span></div>' +
+      '<p>' + t.d + '</p>' +
+      '<div class="rule"><b>Rule:</b> ' + t.rule + '</div>' +
+      '</article>';
+  }
+  document.getElementById("decisionList").innerHTML = decisions.map(decisionCard).join("");
+  document.getElementById("trapList").innerHTML = traps.map(trapCard).join("");
+})();
+</script>
+</body>
+</html>
