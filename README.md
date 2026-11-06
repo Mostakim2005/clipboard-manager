@@ -153,4 +153,4 @@ Free to use, modify, and share for any **noncommercial** purpose: personal study
 
 **Commercial use is not granted** by this license. If you want to use ClipboardApp in a commercial product or paid service, contact the author for a separate commercial license.
 
-Third-party components keep their own licenses: MIT (Microsoft.Data.Sqlite, System.Memory, the .NET runtime, and the test tooling), Apache-2.0 (SQLitePCLRaw and xUnit), and public domain (SQLite itself). All are permissively licensed — there are no copyleft dependencies. Full attribution and license texts are in [`LICENSE`](LICENSE).
+Third-party components keep their own licenses: MIT (Microsoft.Data.Sqlite, System.Memory, the .NET runtime, and the test tooling), Apache-2.0 (SQLitePCLRaw and xUnit), and public domain (SQLite itself). All are permissively licensed — there are no copyleft dependencies. The full attribution table is in [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md).

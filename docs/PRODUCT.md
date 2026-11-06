@@ -262,5 +262,5 @@
 * Do not ship a build with compiler warnings or failing tests.
 * Do not add a dependency with a copyleft license (GPL, LGPL, AGPL, MPL) or any license that
   conflicts with the project's PolyForm Noncommercial 1.0.0 terms. Record every new dependency
-  in `LICENSE` under "Third-Party Components".
+  in `THIRD-PARTY-NOTICES.md`.
 * Do not commit `.exe`, `releases/`, `publish/`, `node_modules/`, secrets, or local absolute paths to the public repository.
