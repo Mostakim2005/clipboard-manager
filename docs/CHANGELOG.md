@@ -3,10 +3,26 @@
 # Changelog
 
 Every released version is recorded here. The version number itself is defined once, in
-[`Directory.Build.props`](../Directory.Build.props), and follows the three-part semantic
-versioning policy in [`AGENTS.md` § 2A](../AGENTS.md): **MAJOR** for breaking/architectural
-changes, **MINOR** for moderate features or non-breaking behaviour changes, **PATCH** for minor
-improvements, small fixes, and corrections.
+[`Directory.Build.props`](../Directory.Build.props), and follows the semantic versioning policy
+in [`BUILD.md`](BUILD.md): **MAJOR** for breaking/architectural changes, **MINOR** for moderate
+features or non-breaking behaviour changes, **PATCH** for minor improvements, small fixes, and
+corrections.
+
+---
+
+## License change — 2026-11-06
+
+- **Project license is now PolyForm Noncommercial 1.0.0** (was MIT). Personal, hobby,
+  research, educational, charity, and government use remain free. Commercial use now
+  requires a separate license from the author.
+- **`LICENSE` now carries the third-party attribution record.** It lists every NuGet
+  component resolved by the build (Microsoft.Data.Sqlite, SQLitePCLRaw, SQLite, System.Memory,
+  the .NET runtime, Microsoft.NET.Test.Sdk, Newtonsoft.Json, xUnit, and their transitive
+  packages), states which ones ship inside the executable and which are test-only, and
+  includes the full MIT and Apache-2.0 texts so the file is self-contained.
+- **No copyleft dependencies.** Every third-party component is MIT, Apache-2.0, or public
+  domain, so the noncommercial terms on ClipboardApp's own code do not conflict with them.
+- `README.md` explains the permitted uses and the commercial-license path.
 
 ---
 

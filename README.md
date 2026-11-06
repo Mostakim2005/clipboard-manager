@@ -147,4 +147,10 @@ Full diagrams, flows, and extension recipes: [`docs/ARCHITECTURE.md`](docs/ARCHI
 
 ## License
 
-MIT — see [`LICENSE`](LICENSE).
+**PolyForm Noncommercial 1.0.0** — see [`LICENSE`](LICENSE).
+
+Free to use, modify, and share for any **noncommercial** purpose: personal study, hobby projects, research, experimentation, private entertainment, and use by charitable, educational, public research, public safety, health, environmental, or government organisations.
+
+**Commercial use is not granted** by this license. If you want to use ClipboardApp in a commercial product or paid service, contact the author for a separate commercial license.
+
+Third-party components keep their own licenses: MIT (Microsoft.Data.Sqlite, System.Memory, the .NET runtime, and the test tooling), Apache-2.0 (SQLitePCLRaw and xUnit), and public domain (SQLite itself). All are permissively licensed — there are no copyleft dependencies. Full attribution and license texts are in [`LICENSE`](LICENSE).
