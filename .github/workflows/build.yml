@@ -59,13 +59,36 @@ jobs:
             -p:Version=$version `
             -o publish
           if ($LASTEXITCODE -ne 0) { throw "Portable publish failed." }
-          $out = "dist/ClipboardApp-v$version-Portable.exe"
           New-Item -ItemType Directory -Path dist -Force | Out-Null
-          Copy-Item publish/ClipboardApp.exe $out -Force
-          $hash = (Get-FileHash $out -Algorithm SHA256).Hash
-          "$hash  $(Split-Path -Leaf $out)" | Set-Content dist/SHA256SUMS.txt -Encoding UTF8
-          Write-Host "Artifact: $out"
-          Write-Host "SHA256:   $hash"
+          Copy-Item publish/ClipboardApp.exe dist/ClipboardApp-v$version-Portable.exe -Force
+          Write-Host "Portable artifact ready: dist/ClipboardApp-v$version-Portable.exe"
+
+      - name: Package and publish setup installer
+        shell: pwsh
+        run: |
+          $version = "${{ steps.ver.outputs.version }}"
+          & tools/pack.ps1
+          if ($LASTEXITCODE -ne 0) { throw "Payload compression failed." }
+          dotnet publish src/ClipboardApp.Installer/ClipboardApp.Installer.csproj `
+            -c Release -r win-x64 --self-contained `
+            -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:Version=$version `
+            -o publish/installer
+          if ($LASTEXITCODE -ne 0) { throw "Installer publish failed." }
+          Copy-Item publish/installer/ClipboardApp-Setup.exe dist/ClipboardApp-v$version-Setup.exe -Force
+          Write-Host "Installer artifact ready: dist/ClipboardApp-v$version-Setup.exe"
+
+      - name: Generate checksums
+        shell: pwsh
+        run: |
+          $files = Get-ChildItem dist/*.exe
+          $lines = foreach ($f in $files) {
+            $h = (Get-FileHash $f.FullName -Algorithm SHA256).Hash
+            "$h  $($f.Name)"
+          }
+          $lines | Set-Content dist/SHA256SUMS.txt -Encoding UTF8
+          Write-Host "Generated SHA256SUMS.txt:"
+          Get-Content dist/SHA256SUMS.txt
 
       - name: Upload test results
         if: always()
@@ -75,12 +98,12 @@ jobs:
           path: "**/test-results.trx"
           if-no-files-found: ignore
 
-      - name: Upload portable artifact
+      - name: Upload release artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ClipboardApp-portable-${{ steps.ver.outputs.version }}
+          name: ClipboardApp-binaries-${{ steps.ver.outputs.version }}
           path: |
-            dist/ClipboardApp-*-Portable.exe
+            dist/*.exe
             dist/SHA256SUMS.txt
           if-no-files-found: error
 

@@ -1,8 +1,8 @@
-﻿# Engineering Handoff — ClipboardApp
+# Engineering Handoff — ClipboardApp
 
 > **1-Line Summary:** The current state of the codebase, where every subsystem lives, what is verified, and what an incoming agent should do next.
 
-**Last updated:** 2026-11-06 · **Version:** 3.1.0 · **Branch:** `main` · **Remote:** `github.com/Mostakim2005/clipboard-manager`
+**Last updated:** 2026-11-07 · **Version:** 3.1.1 · **Branch:** `main` · **Remote:** `github.com/Mostakim2005/clipboard-manager`
 
 ---
 
@@ -10,7 +10,7 @@
 
 | Item | Status |
 | :--- | :--- |
-| Version | `3.1.0` in `Directory.Build.props` (single source) |
+| Version | `3.1.1` in `Directory.Build.props` (single source) |
 | Build | `dotnet build ClipboardApp.sln -c Release` — 0 warnings, 0 errors |
 | Tests | `dotnet test ClipboardApp.sln -c Release` — 116/116 |
 | Portable release | Built by `.github/workflows/build.yml`, attached to GitHub Releases |

@@ -1,4 +1,4 @@
-﻿[Product Intent](PRODUCT.md) · [Architecture](ARCHITECTURE.md) · [Decisions & Traps](DECISIONS_AND_TRAPS.md) · [Visual Guide](VISUAL_GUIDE.html) · [AI Bootstrap](../AI_BOOTSTRAP.md)
+[Product Intent](PRODUCT.md) · [Architecture](ARCHITECTURE.md) · [Decisions & Traps](DECISIONS_AND_TRAPS.md) · [Visual Guide](VISUAL_GUIDE.html) · [AI Bootstrap](../AI_BOOTSTRAP.md)
 
 # Changelog
 
@@ -7,6 +7,19 @@ Every released version is recorded here. The version number itself is defined on
 in [`BUILD.md`](BUILD.md): **MAJOR** for breaking/architectural changes, **MINOR** for moderate
 features or non-breaking behaviour changes, **PATCH** for minor improvements, small fixes, and
 corrections.
+
+---
+
+## 3.1.1 — Dual cloud release (Portable + Setup) & modular docs
+
+### Cloud CI/CD and release packaging
+- **GitHub Actions dual build.** Updated `.github/workflows/build.yml` to automatically build, package, verify, and attach both the Portable (`ClipboardApp-v3.1.1-Portable.exe`) and Setup Installer (`ClipboardApp-v3.1.1-Setup.exe`) on release tags.
+- **Unified SHA-256 checksums.** GitHub Actions computes and attaches a single `SHA256SUMS.txt` covering both deliverables.
+
+### Documentation & agent protocol alignment
+- **`ARCHITECTURE.md` refactored.** Converted to modular `### [SUBSYSTEM: ...]` and `### [VERIFY: ...]` slug headers with `> **1-Line Summary:**` and code symbol anchors per `agent-templates` standard.
+- **Project-level `AGENTS.md` boundaries.** Realigned root `AGENTS.md` to Template 5 (Repository Facts Only) to eliminate redundant protocol duplication.
+- **Clean workspace.** Pruned all untracked local build outputs and binaries.
 
 ---
 

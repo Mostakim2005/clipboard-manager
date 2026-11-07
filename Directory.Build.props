@@ -22,7 +22,7 @@
     docs/CHANGELOG.md records what each version changed and why.
   -->
   <PropertyGroup>
-    <Version>3.1.0</Version>
+    <Version>3.1.1</Version>
     <AssemblyVersion>$(Version).0</AssemblyVersion>
     <FileVersion>$(Version).0</FileVersion>
     <InformationalVersion>$(Version)</InformationalVersion>

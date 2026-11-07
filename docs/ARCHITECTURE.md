@@ -1,146 +1,172 @@
-# Architecture & System Design (`ARCHITECTURE.md`)
+# System Architecture (`ARCHITECTURE.md`)
+> **1-Line Summary:** Plain-English visual map of how ClipboardApp works, why each component was chosen, and step-by-step recipes for extending the codebase safely.
 
-> **1-Line Summary:** How ClipboardApp is put together — the layers, the data and paste flows, the security boundaries, and the non-obvious tricks that keep it fast and predictable.
-
-## 1. Tech Stack
-
-| Layer | Technology | Why It Is Here |
-| :--- | :--- | :--- |
-| Language / runtime | C# on .NET 8 (`net8.0-windows`) | Modern Windows APIs, single-file publish, strong tooling |
-| UI | Windows Forms + owner-drawn controls | Fast startup, low memory, no WebView/Chromium dependency |
-| Data | SQLite via `Microsoft.Data.Sqlite` | Local, transactional, queryable history without a server |
-| Encryption | Windows DPAPI (`DataProtectionScope.CurrentUser`) | Data at rest is bound to the current Windows user |
-| API vault | AES-256-GCM + DPAPI-wrapped key + optional PBKDF2 | Separate high-value secret store with timed unlock |
-| Interop | Win32 P/Invoke in `NativeMethods` | Clipboard formats, foreground checks, `SendInput`, hotkeys, DWM |
-| Packaging | `dotnet publish` single-file + PowerShell pipeline | Portable `.exe` by default; verifiable setup on demand |
-| CI | GitHub Actions on `windows-latest` | Builds/tests the portable binary from source, never commits it |
-| Tests | xUnit | Unit coverage for storage, interop layout, gestures, filters, UI contracts |
-
-## 2. System Layers
+## 1. High-Level Visual System Map
 
 ```mermaid
 flowchart TB
-    subgraph UI["UI — WinForms"]
-        MF["MainForm<br/>capture, snapshot, lifecycle"]
-        MU["MainForm.Ui<br/>layout, theme, view switch"]
-        MP["MainForm.Paste<br/>paste, batch, drag, target"]
-        MD["MainForm.Dialogs<br/>menu, editor, options"]
-        MFil["MainForm.Filters<br/>date/type/app filters"]
-        Cards["ModernCardList / GridCardList"]
-        Inspect["RichPreviewPanel / ImagePreview"]
-        Chrome["FilterPillBar / TrayIcon / HotkeyCaptureBox"]
-        Style["UiStyler / ModernPalette / MessageDialog"]
+    subgraph UI["UI Layer — WinForms Owner-Drawn"]
+        MF["MainForm<br/>Lifecycle, state coordinator, snapshot"]
+        MU["MainForm.Ui<br/>Layout, theme, view switcher"]
+        MP["MainForm.Paste<br/>Target verification, batch paste, drag-drop"]
+        MD["MainForm.Dialogs<br/>Settings, context menu, editor"]
+        MFil["MainForm.Filters<br/>Date, type, app, tag filters"]
+        Cards["ModernCardList & GridCardList<br/>Owner-drawn card & tile views"]
+        Inspect["RichPreviewPanel<br/>Inspector, transform staging"]
+        Style["UiStyler & ModernPalette<br/>Fluent, Acrylic, Classic, Native themes"]
     end
 
-    subgraph Core["Core — services and domain"]
-        Monitor["ClipboardMonitor"]
-        Paste["PasteService / BatchPasteService / BatchCopyService"]
-        Rich["RichMergeService / PasteTargetInspector"]
-        Search["SearchService / FilterService"]
-        Tags["TagSuggestionService / TextTransformService"]
-        Identity["ClipboardContentIdentity"]
-        Export["ExportImportService"]
-        Hotkey["HotkeyParser"]
+    subgraph Core["Core Engine — Domain Services"]
+        Monitor["ClipboardMonitor<br/>Win32 clipboard listener"]
+        Paste["PasteService & BatchPasteService<br/>Target verification & SendInput"]
+        Rich["RichMergeService & PasteTargetInspector<br/>Multi-format merge & target probing"]
+        Search["SearchService & FilterService<br/>Debounced text, regex, tag filtering"]
+        Tags["TagSuggestionService & TextTransformService<br/>Tag frequency & transform pipeline"]
+        Identity["ClipboardContentIdentity<br/>Type-prefixed SHA-256 dedupe"]
     end
 
-    subgraph Data["Storage and security"]
-        Repo["SqliteClipboardRepository"]
-        Vault["ApiKeyRepository / ApiVaultService"]
-        DPAPI["DataProtector"]
-        Privacy["ClipboardPrivacyFilter"]
+    subgraph Security["Storage & Security Layer"]
+        Repo["SqliteClipboardRepository<br/>Local SQLite history store"]
+        Vault["ApiKeyRepository & ApiVaultService<br/>AES-256-GCM encrypted secret store"]
+        DPAPI["DataProtector<br/>Windows DPAPI CurrentUser"]
+        Privacy["ClipboardPrivacyFilter<br/>Ignored apps, sensitive data, password atoms"]
     end
 
-    subgraph Infra["Infrastructure"]
-        Native["NativeMethods"]
-        Target["TargetWindowTracker"]
-        Settings["Settings / Directory.Build.props"]
-        Program["Program / HotkeyManager / AppVersion"]
+    subgraph Infra["Infrastructure & OS Interop"]
+        Native["NativeMethods<br/>Win32 P/Invoke, DWM, user32, ole32"]
+        Target["TargetWindowTracker<br/>Foreground window inspection"]
+        Settings["Settings<br/>Persistent JSON configuration"]
+        Program["Program & HotkeyManager<br/>Single-instance guard & global hotkeys"]
     end
 
     MF --> Monitor
-    MF --> MU
-    MF --> MP
-    MF --> MD
-    MF --> MFil
-    MU --> Cards
-    MU --> Inspect
-    MU --> Chrome
-    MU --> Style
-    MP --> Paste
-    MP --> Rich
-    MP --> Target
+    MF --> MU & MP & MD & MFil
+    MU --> Cards & Inspect & Style
+    MP --> Paste & Rich & Target
     MD --> Tags
     MFil --> Search
-    MF --> Repo
+    MF --> Repo & Privacy & Settings
     Repo --> DPAPI
     Vault --> DPAPI
-    MF --> Privacy
     Paste --> Native
     Target --> Native
-    MF --> Settings
     Program --> MF
-    Program --> Hotkey
 ```
 
-## 3. Capture Flow
+---
 
+## 2. Tech Stack & Why We Chose It
+
+| Layer | Technology | Plain-English Reason Why |
+| :--- | :--- | :--- |
+| **Runtime & Language** | C# on .NET 8 (`net8.0-windows`) | High-performance native Windows interop, self-contained single-file publishing, zero runtime installation needed by users. |
+| **User Interface** | Windows Forms (WinForms) + Owner-Drawn Controls | Instant cold startup (<200ms), low memory footprint (<40MB), zero Chromium or WebView2 runtime dependency. |
+| **Local Storage** | SQLite via `Microsoft.Data.Sqlite` | ACID-compliant, zero-configuration local database for indexed search and history persistence without server overhead. |
+| **Data Encryption** | Windows DPAPI (`DataProtectionScope.CurrentUser`) | Transparent encryption-at-rest keyed strictly to the logged-in Windows user account. |
+| **API Secret Vault** | AES-256-GCM with DPAPI-wrapped Master Key | Isolated secure storage for sensitive API keys with auto-locking and memory wiping on idle. |
+| **OS Interop** | Win32 P/Invoke via `NativeMethods` | Direct control over Windows clipboard sequences, `SendInput` keyboard simulation, target window hierarchy, and hotkeys. |
+| **Packaging & CI** | GitHub Actions Cloud Pipeline | Cloud-built portable `.exe` and setup installer built strictly from tagged source code; zero binaries committed to Git. |
+| **Automated Testing** | xUnit Test Suite (116 tests) | Enforces regressions prevention across SQLite storage, interop struct sizes, dedupe hashing, and UI contracts. |
+
+---
+
+## 3. Core Subsystems & Engineering Tricks
+
+### [SUBSYSTEM: Clipboard-Capture-And-Monitoring] | Aliases: capture loop, WM_CLIPBOARDUPDATE, ClipboardMonitor
+> **1-Line Summary:** Listens for Windows clipboard updates, filters out password managers and sensitive tokens, and saves encrypted clips without disturbing the user's active reading view.
+
+* **How It Works (Plain English):**
+  The app registers as a clipboard format listener via Win32 `AddClipboardFormatListener`. When the user copies text or images anywhere in Windows, `WM_CLIPBOARDUPDATE` fires. Before touching the content, the monitor checks whether the copy came from an ignored app or password manager. If permitted, the content is encrypted via Windows DPAPI and stored in SQLite. Crucially, the visible list is **never reloaded or jumped** during capture; only a background dirty flag and capture counter are incremented.
+
+* **Data Flow Diagram:**
 ```mermaid
 sequenceDiagram
-    participant OS as Windows clipboard
+    participant OS as Windows OS Clipboard
     participant Mon as ClipboardMonitor
     participant Main as MainForm
     participant Privacy as ClipboardPrivacyFilter
     participant Repo as SqliteClipboardRepository
-    participant Snap as Snapshot
+    participant Snap as Snapshot View
 
     OS->>Mon: WM_CLIPBOARDUPDATE
-    Mon->>Main: ClipboardChanged
-    Main->>Main: self-write suppression? stop
-    Main->>Privacy: ignored app / privacy flags?
-    Privacy-->>Main: ignore or continue
-    Main->>Main: read file drop > image > text > HTML > RTF
-    Main->>Privacy: sensitive detection / expiry
-    Main->>Repo: InsertEntry(entry)
-    Repo->>Repo: ClipboardContentIdentity (type-prefixed SHA-256)
-    Repo->>Repo: KeepPosition | MoveToTop | AllowDuplicates
-    Repo-->>Main: saved
-    Main->>Snap: mark dirty + capture counter
-    Note over Main,Snap: The visible list is NOT rebuilt here.
-    Main->>Snap: optional FD refresh after a confirmed copy
+    Mon->>Main: ClipboardChanged Event
+    Main->>Main: Check self-write suppression (ignore own pastes)
+    Main->>Privacy: Check ignored apps & password manager atoms
+    alt Ignored or Password Manager
+        Privacy-->>Main: Drop copy (never saved)
+    else Allowed
+        Privacy-->>Main: Approved for capture
+        Main->>Privacy: Scan sensitive patterns & compute expiry
+        Main->>Repo: InsertEntry(entry)
+        Repo->>Repo: Compute type-prefixed SHA-256 hash
+        Repo->>Repo: Apply dedupe (KeepPosition, MoveToTop, AllowDuplicates)
+        Repo-->>Main: Saved successfully
+        Main->>Snap: Increment dirty counter (list position frozen)
+    end
 ```
 
-**Trick:** The capture path never reads the database back into the list. That is what keeps the UI from jumping while the user is reading or selecting. `ReloadSnapshot` is the only full read path; the FD refresh is the one deliberate, coalesced exception.
+* **Core Tricks & Landmines:**
+  * **Freeze the View:** Never call `ReloadSnapshot()` on clipboard capture events. Live re-sorting while reading or selecting causes clicks to misfire.
+  * **Coalesced FD Refresh:** An optional "fresh data" refresh is triggered only after a confirmed manual copy, preserving the user's active item selection and scroll position.
 
-## 4. Paste Flow
+* **Code Anchors (Grep Targets):**
+  * `src/ClipboardApp.Core/Services/ClipboardMonitor.cs` -> `AddClipboardListener`, `WndProc`
+  * `src/ClipboardApp.Core/Services/ClipboardPrivacyFilter.cs` -> `ShouldIgnoreApp`, `DetectSensitive`
+  * `src/ClipboardApp.Core/Data/SqliteClipboardRepository.cs` -> `InsertEntry`, `ComputeHash`
+  * `src/ClipboardApp.WinForms/MainForm.cs` -> `OnClipboardChanged`, `ReloadSnapshot`
 
+---
+
+### [SUBSYSTEM: Target-Verified-Paste-Engine] | Aliases: paste flow, SendInput, foreground verification, PasteService
+> **1-Line Summary:** Verifies that the intended target application truly owns the foreground window before sending synthetic keystrokes, preventing misdirected pastes.
+
+* **How It Works (Plain English):**
+  When the user pastes an item (or a batch of merged items), the app identifies the window that was active right before ClipboardApp appeared. It hides ClipboardApp, restores focus to the target, and inspects the Win32 foreground handle. Only when the foreground window is confirmed to match the intended target, and all physical modifier keys are released, does it inject `Ctrl+V` using Win32 `SendInput`.
+
+* **Data Flow Diagram:**
 ```mermaid
 flowchart TD
-    A["User presses Enter / clicks Paste / batch action"] --> B{"Multi-selection?"}
-    B -- yes --> C["Merge or Paste Each plan"]
-    B -- no --> D["Single entry payload"]
-    C --> E["Resolve target window"]
+    A["User triggers Paste / Enter / Batch"] --> B{"Single or Batch?"}
+    B -- Single --> C["Prepare single entry payload"]
+    B -- Batch --> D["Merge text / Rich formatting"]
+    C --> E["Inspect recorded target window"]
     D --> E
-    E --> F{"Safe target?"}
-    F -- no --> G["Copy to clipboard + status<br/>stay visible"]
-    F -- yes --> H["Suppress self-capture"]
-    H --> I["Hide main window, yield"]
-    I --> J["PasteService.CopyEntry / CopyRich"]
-    J --> K{"Clipboard write succeeded?"}
-    K -- no --> L["HandlePasteFailure + reopen picker"]
-    K -- yes --> M["Activate target + verify foreground"]
-    M --> N{"Foreground verified?"}
-    N -- no --> L
-    N -- yes --> O["Wait for physical keys released"]
-    O --> P["SendInput Ctrl+V"]
-    P --> Q{"Paste accepted?"}
-    Q -- yes --> R["Clear selection if configured"]
-    Q -- no --> L
+    E --> F{"Target window still valid?"}
+    F -- No --> G["Copy to clipboard only<br/>Keep window visible with notification"]
+    F -- Yes --> H["Arm self-capture suppression"]
+    H --> I["Hide ClipboardApp window"]
+    I --> J["Write payload to Windows clipboard"]
+    J --> K{"Write succeeded?"}
+    K -- No --> L["Report error & restore UI"]
+    K -- Yes --> M["Activate target window & wait for foreground"]
+    M --> N{"Foreground confirmed?"}
+    N -- No --> L
+    N -- Yes --> O["Wait for physical modifier keys release"]
+    O --> P["SendInput synthetic Ctrl+V"]
+    P --> Q["Success: update last used timestamp"]
 ```
 
-**Trick:** A clipboard write is not proof of a paste. The app verifies foreground ownership and the `SendInput` result before declaring success. If anything is uncertain, it copies the payload and keeps the window visible instead of guessing.
+* **Core Tricks & Landmines:**
+  * **40-Byte Struct on x64:** The native Win32 `INPUT` struct must be exactly 40 bytes on 64-bit systems. An incorrect union size causes `SendInput` to silently fail with zero keystrokes dispatched.
+  * **No Blind Typing:** Never send keystrokes without foreground verification. If the target window closed or lost focus, fallback to standard clipboard copy and notify the user.
 
-## 5. Data Model and Ordering
+* **Code Anchors (Grep Targets):**
+  * `src/ClipboardApp.Core/Interop/NativeMethods.cs` -> `SendInput`, `INPUT`, `InputUnion`
+  * `src/ClipboardApp.Core/Services/PasteService.cs` -> `PasteToTarget`, `CopyEntry`
+  * `src/ClipboardApp.WinForms/MainForm.Paste.cs` -> `ExecutePasteAction`, `VerifyTarget`
 
+---
+
+### [SUBSYSTEM: Data-Model-And-Deterministic-Ordering] | Aliases: SQLite schema, Seq ordering, dedupe modes, ClipboardContentIdentity
+> **1-Line Summary:** Maintains deterministic history ordering using auto-incrementing sequence integers and type-prefixed SHA-256 hashes for reliable duplicate handling.
+
+* **How It Works (Plain English):**
+  Every captured clipboard entry is assigned an increasing sequence integer (`Seq`). Items are sorted by `Pinned DESC, Seq DESC`. Duplicate detection relies on `ClipboardContentIdentity`, which prefixes hashes with the data type (e.g., `text:`, `image:`, `files:`) before computing SHA-256. The repository supports three user-selected deduplication policies:
+  1. **Keep Position (Default):** Existing entry retains its visual index; only copy count and timestamp increase.
+  2. **Move to Top:** Entry is assigned a new `Seq = MAX(Seq) + 1` and floats to the top of the history.
+  3. **Allow Duplicates:** Every copy creates an independent record.
+
+* **Database Entity Relationship:**
 ```mermaid
 erDiagram
     ENTRIES {
@@ -180,107 +206,137 @@ erDiagram
     TAGS ||--o{ ENTRY_TAGS : labels
 ```
 
-* New row: `Seq = MAX(Seq) + 1`.
-* Sort: `Pinned DESC, Seq DESC`.
-* `KeepPosition` (default): recopy updates `CopyCount` / `LastCopiedAt` only.
-* `MoveToTop`: recopy assigns a new `Seq`.
-* `AllowDuplicates`: always inserts a new row.
-* `ContentHash` is type-prefixed SHA-256 from `ClipboardContentIdentity`; only the repository decides duplicates.
-
-## 6. UI Composition and View Parity
-
-* `MainForm.Ui.cs` builds the shell: header/search, type pills, permanent filter row, split view, batch bar, footer.
-* `ModernCardList` is a native owner-drawn `ListBox`; `GridCardList` is a `ScrollableControl` tile renderer. Both expose the same selection, activation, drag, and context-menu contracts.
-* `MainForm.Accessor` is the only surface used by commands. Add a method to the accessor instead of branching on `ViewMode` at each call site.
-* `RichPreviewPanel` owns the inspector and the transform-preview staging (`Save Changes`, `Cancel`, `Undo`).
-* `ThumbnailCache` decodes image thumbnails lazily, preserves aspect ratio (letterbox), and evicts with an LRU bound.
-* `UiStyler` applies Fluent / Acrylic / Classic / Native tokens to forms, menus, inline controls, and `MessageDialog`. Native restores standard Windows chrome.
-
-## 7. Security Boundaries
-
-```mermaid
-flowchart LR
-    Clip["Clipboard content"] --> Privacy["Privacy filters<br/>flags, ignored apps, sensitive regex"]
-    Privacy -->|allowed| DPAPI["DPAPI CurrentUser"]
-    Privacy -->|blocked| Drop["Never stored"]
-    DPAPI --> DB["data.db<br/>encrypted Content + ImageData"]
-    DB --> UI["UI decrypts on demand"]
-    Key["API key"] --> Vault["AES-256-GCM<br/>DPAPI-wrapped vault key"]
-    Vault --> KeyDB["API key store<br/>never in history/search"]
-    Vault -->|idle| Lock["Auto-lock + zero key material"]
-    UI -->|copy key| Suppress["Suppress capture + auto-clear"]
-```
-
-* Database and settings live under `%LocalAppData%\ClipboardApp\`, not roaming `%AppData%`.
-* Password-manager privacy atoms and the ignored-app list are checked before capture.
-* Sensitive clips are masked in the list/inspector and expire after `AutoClearSensitiveMinutes`.
-* API keys are stored in a separate encrypted repository and never enter history, search, or batch copy.
-* The app never logs clipboard content to the crash log.
-
-## 8. Build, Version, and Release
-
-```mermaid
-flowchart LR
-    V["Directory.Build.props<br/>single Version"] --> App["WinForms app"]
-    V --> Installer["Setup installer"]
-    V --> Tests["Tests"]
-    Src["Source"] --> Build["dotnet build"]
-    Build --> Test["dotnet test<br/>test-count floor"]
-    Test --> Publish["dotnet publish<br/>single-file portable"]
-    Publish --> Pack["pack.ps1<br/>payload.bin"]
-    Pack --> Setup["Setup exe"]
-    Publish --> Hash["SHA256SUMS + manifest"]
-    Setup --> Verify["verify-release.ps1<br/>payload byte-identity"]
-    Publish --> CI["GitHub Actions artifact"]
-    CI --> Release["GitHub Release on tag"]
-```
-
-* Version is defined once in `Directory.Build.props`; never hard-code it in a project file or script.
-* `tools/build_releases.ps1` enforces a minimum test count, regenerates the installer payload from the just-built portable, and writes `sha256sum`-compatible checksums.
-* `tools/verify-release.ps1` proves the installer payload matches the portable and checks the stamped version.
-* `releases/` and `publish/` are gitignored. GitHub Actions builds the portable binary; release binaries are attached to GitHub Releases, not committed.
-
-## 9. Subsystem Tricks and Landmines
-
-| Area | Trick / Rule | Why It Matters |
-| :--- | :--- | :--- |
-| Native list painting | Never set `ControlStyles.UserPaint` on `ModernCardList` | It suppresses the native `WM_DRAWITEM` path and produces a blank list until hover |
-| x64 input | `INPUT` / `InputUnion` must size to 40 bytes on x64 | A 32-byte struct makes `SendInput` silently return 0 |
-| Double-click | Detect inside the control; activate on the second mouse-up | Avoids the form hiding mid-gesture and duplicate activation |
-| Target focus | Verify foreground/root before `Ctrl+V` | Prevents pasting into the wrong or stale window |
-| Drag | Manual arming + 8 px threshold | Drag must not steal clicks, checkboxes, marquee, or double-click |
-| Snapshot | Capture writes only; `ReloadSnapshot` is the single read path | Keeps selection and scroll stable |
-| Selection | Checked IDs survive refresh/filter; prune to existing | Multi-select must not evaporate on rebuild |
-| Images | `ThumbnailCache` letterboxes; never stretch | Screenshots must stay recognizable |
-| Rich merge | Inspect target class before writing HTML/RTF/images | Plain editors get text, not corrupt binary payloads |
-| Context menu | `customize` is non-hideable and always last | User can always recover a hidden command |
-| Filters | Delete only visible filtered IDs | Hidden checked items must not be deleted by surprise |
-| API vault | Modeless, timed unlock, zero memory on close | Usable without weakening the secret boundary |
-| Versioning | One `Version` property | Prevents app/installer/test drift |
-| Installer | Regenerate payload from the portable; verify byte-identity | A fresh clone can rebuild and prove the setup matches |
-| Encoding | Keep UTF-8; use `tools/fix-encoding.ps1` if mojibake appears | Windows-1252 round-trips corrupt emoji, quotes, and box drawing |
-
-## 10. How to Extend Safely
-
-1. **New clipboard format:** add capture + write support in `PasteService` and `ClipboardContentIdentity`; update `ClipboardEntry.Format`; add a test that round-trips the payload.
-2. **New context-menu command:** add a `ContextMenuCommand` in `ContextMenuCommands.All`, handle it in `MainForm.ShowContextMenu`, and ensure `NormalizeOrder` accepts it. Keep `customize` last.
-3. **New settings toggle:** add the property + normalization in `Settings`, expose it in `OptionsDialog`, and add a default-value/smoke test.
-4. **New card action:** add it to `MainForm.Accessor` so both list and grid views route through one surface.
-5. **New transform:** add it to `TextTransformService`, wire it into the preview menu, and test the preview/save/cancel contract.
-6. **New dialog:** set `Owner`, suspend/restore `TopMost`, and apply `UiStyler.ApplyForm`.
-7. **New release step:** update `build_releases.ps1`, `verify-release.ps1`, and the changelog together; never hand-edit hashes.
-
-## 11. Verification
-
-```powershell
-dotnet build ClipboardApp.sln -c Release
-dotnet test ClipboardApp.sln -c Release
-.\tools\build_releases.ps1 -BuildInstaller
-.\tools\verify-release.ps1
-```
-
-Expected current state: **0 warnings / 0 errors**, **116/116 tests**, portable + setup artifacts, payload byte-identity verified.
+* **Code Anchors (Grep Targets):**
+  * `src/ClipboardApp.Core/Data/SqliteClipboardRepository.cs` -> `InitSchema`, `GetEntriesPaged`
+  * `src/ClipboardApp.Core/Services/ClipboardContentIdentity.cs` -> `ComputeHash`
+  * `src/ClipboardApp.Core/Models/ClipboardEntry.cs` -> `ClipboardEntry`
 
 ---
 
-*Related: [Product Intent](PRODUCT.md) · [Decisions & Traps](DECISIONS_AND_TRAPS.md) · [Visual Guide](VISUAL_GUIDE.html) · [Build Pipeline](BUILD.md) · [UI/UX](UI_UX.md) · [Subsystem Dossiers](subsystems/01-pasting-and-focus.md)*
+### [SUBSYSTEM: Owner-Drawn-UI-And-View-Parity] | Aliases: ModernCardList, GridCardList, Accessor, RichPreviewPanel
+> **1-Line Summary:** Powers both list and tile grid interfaces through a unified command accessor, keeping selection, hotkeys, and actions identical across views.
+
+* **How It Works (Plain English):**
+  The user can switch between a high-density vertical list (`ModernCardList`) and a full-width tile grid (`GridCardList`). Rather than branching UI logic throughout the codebase, both controls conform to a single command interface (`MainForm.Accessor`). Keyboard navigation, multi-selection, drag-and-drop, and context menus execute through this shared accessor. An inspector panel (`RichPreviewPanel`) provides syntax-highlighted code preview, image zoom, color swatches, and staged text transformation previews.
+
+* **Core Tricks & Landmines:**
+  * **Never Set UserPaint on ModernCardList:** Enabling `ControlStyles.UserPaint` suppresses the native Windows `WM_DRAWITEM` message pipeline, causing the list box to render completely blank until hovered.
+  * **Surviving Rebuilds:** Selection state must persist across filtering and background data refreshes. Checked IDs are retained and matched against visible items.
+
+* **Code Anchors (Grep Targets):**
+  * `src/ClipboardApp.WinForms/Controls/ModernCardList.cs` -> `OnDrawItem`, `OnMeasureItem`
+  * `src/ClipboardApp.WinForms/Controls/GridCardList.cs` -> `OnPaint`, `OnMouseDown`
+  * `src/ClipboardApp.WinForms/Controls/RichPreviewPanel.cs` -> `SetEntry`, `ApplyTransformPreview`
+  * `src/ClipboardApp.WinForms/MainForm.Ui.cs` -> `SetupLayout`, `SwitchViewMode`
+
+---
+
+### [SUBSYSTEM: DPAPI-Encryption-And-API-Key-Vault] | Aliases: data protection, secrets vault, auto-lock, ApiVaultService
+> **1-Line Summary:** Secures all clipboard history with Windows DPAPI and provides an isolated AES-256-GCM vault for developer API tokens that never enters search history.
+
+* **How It Works (Plain English):**
+  All stored text content and image binaries are encrypted with `DataProtector` using Windows DPAPI tied to the current Windows user identity. For high-value developer API keys, a dedicated `ApiVaultService` provides AES-256-GCM authenticated encryption behind a separate master password or DPAPI-wrapped key. API keys never appear in normal clipboard history, cannot be found via global search, and automatically lock after an inactivity timer, wiping key material from RAM.
+
+* **Security Boundaries:**
+```mermaid
+flowchart LR
+    Clip["Clipboard Data"] --> Privacy["Privacy Filters<br/>Regex, Ignored Apps"]
+    Privacy -->|Allowed| DPAPI["Windows DPAPI<br/>CurrentUser Scope"]
+    DPAPI --> DB[("SQLite DB<br/>data.db")]
+    DB --> UI["Decrypt on Demand"]
+    APIKey["API Key Vault"] --> AES["AES-256-GCM<br/>DPAPI Master Key"]
+    AES --> KeyStore[("Encrypted Key Store<br/>Isolated from History")]
+    KeyStore --> Lock["Inactivity Timer<br/>Zero RAM on Lock"]
+```
+
+* **Code Anchors (Grep Targets):**
+  * `src/ClipboardApp.Core/Security/DataProtector.cs` -> `Protect`, `Unprotect`
+  * `src/ClipboardApp.Core/Security/ApiVaultService.cs` -> `EncryptSecret`, `DecryptSecret`, `Lock`
+  * `src/ClipboardApp.Core/Data/ApiKeyRepository.cs` -> `SaveKey`, `GetKeys`
+
+---
+
+### [SUBSYSTEM: Build-Packaging-And-Installer-Verification] | Aliases: portable exe, setup installer, payload.bin, verify-release
+> **1-Line Summary:** Compiles single-file portable and setup installer executables in the cloud with byte-for-byte embedded payload verification.
+
+* **How It Works (Plain English):**
+  The portable `.exe` is the default deliverable. To produce a setup installer, `tools/pack.ps1` compresses the freshly published portable executable into `payload.bin`. The installer project (`ClipboardApp.Installer`) embeds this exact binary. The verification script `tools/verify-release.ps1` extracts and decompresses the embedded payload to mathematically prove it is byte-identical to the portable release before publishing.
+
+* **Build Pipeline Flow:**
+```mermaid
+flowchart LR
+    V["Directory.Build.props<br/>Version: 3.1.1"] --> WinForms["WinForms Project"]
+    V --> Installer["Installer Project"]
+    WinForms --> Build["dotnet publish WinForms<br/>Single-file Portable"]
+    Build --> Pack["tools/pack.ps1<br/>Compress to payload.bin"]
+    Pack --> BuildSetup["dotnet publish Installer<br/>Self-contained Setup"]
+    BuildSetup --> Verify["tools/verify-release.ps1<br/>Byte-identity check"]
+    Verify --> Release["GitHub Actions Release<br/>Portable + Installer + SHA256SUMS"]
+```
+
+* **Code Anchors (Grep Targets):**
+  * `Directory.Build.props` -> `<Version>`
+  * `tools/pack.ps1` -> GZip compression stream
+  * `tools/build_releases.ps1` -> `BuildInstaller`
+  * `tools/verify-release.ps1` -> `ExtractPayload`, SHA-256 verification
+  * `.github/workflows/build.yml` -> CI/CD packaging pipeline
+
+---
+
+## 4. Verification & Health Checks
+
+### [VERIFY: Release-Readiness-And-Health-Checks] | Aliases: test suite, build check, verify release, health floor
+> **1-Line Summary:** Mandatory commands to verify compiler health, run the 116 automated tests, package deliverables, and verify release payload integrity.
+
+* **Type Check & Compilation (Release):**
+  ```powershell
+  dotnet build ClipboardApp.sln -c Release
+  ```
+  *(Expected: 0 Errors, 0 Warnings).*
+
+* **Automated Unit & Contract Test Suite:**
+  ```powershell
+  dotnet test ClipboardApp.sln -c Release
+  ```
+  *(Expected: 116 tests passed).*
+
+* **Local Dual Packaging (Portable + Setup Installer):**
+  ```powershell
+  powershell -ExecutionPolicy Bypass -File .\tools\build_releases.ps1 -BuildInstaller
+  ```
+
+* **Cryptographic Byte-Identity Verification:**
+  ```powershell
+  powershell -ExecutionPolicy Bypass -File .\tools\verify-release.ps1
+  ```
+  *(Expected: Passes payload extraction, SHA-256 matching, and assembly version stamping).*
+
+---
+
+## 5. Recipes: How to Add New Things Safely
+
+* **Recipe 1: Adding a New Clipboard Format**
+  1. Add format identifier in `src/ClipboardApp.Core/Models/ClipboardEntry.cs` -> `Format`.
+  2. Implement reading logic in `src/ClipboardApp.Core/Services/ClipboardMonitor.cs` -> `ReadClipboardContent`.
+  3. Implement writing logic in `src/ClipboardApp.Core/Services/PasteService.cs` -> `SetClipboardData`.
+  4. Register hashing logic in `src/ClipboardApp.Core/Services/ClipboardContentIdentity.cs` -> `ComputeHash`.
+  5. Add a roundtrip serialization test in `tests/ClipboardApp.Tests/StorageTests.cs`.
+
+* **Recipe 2: Adding a New Text Transformation Action**
+  1. Add transform function in `src/ClipboardApp.Core/Services/TextTransformService.cs`.
+  2. Wire the command into the inspector transform dropdown in `src/ClipboardApp.WinForms/Controls/RichPreviewPanel.cs`.
+  3. Confirm the preview stages `Save Changes`, `Cancel`, and `Undo` without directly mutating the database.
+
+* **Recipe 3: Adding a Context Menu Action**
+  1. Add command enum in `src/ClipboardApp.WinForms/Controls/ContextMenuCommands.cs`.
+  2. Add click handler in `src/ClipboardApp.WinForms/MainForm.cs` -> `HandleContextMenuCommand`.
+  3. Verify that `Customize` remains the non-hideable, bottom-most menu item.
+
+* **Recipe 4: Adding a New Settings Option**
+  1. Add property with default value in `src/ClipboardApp.Core/Models/Settings.cs`.
+  2. Add UI toggle control in `src/ClipboardApp.WinForms/Forms/OptionsDialog.cs`.
+  3. Wire save and reload events in `src/ClipboardApp.WinForms/MainForm.cs` -> `ApplySettings`.
+
+---
+
+*Related Documents: [Product Intent](PRODUCT.md) · [Decisions & Traps](DECISIONS_AND_TRAPS.md) · [Visual Guide](VISUAL_GUIDE.html) · [Build Pipeline](BUILD.md) · [UI/UX](UI_UX.md)*

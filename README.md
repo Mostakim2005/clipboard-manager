@@ -20,7 +20,7 @@ To build it yourself, see [`docs/BUILD.md`](docs/BUILD.md).
 
 ---
 
-## What's New in 3.1.0
+## What's New in 3.1.1
 
 - **Versioning foundation.** One version source of truth in `Directory.Build.props`, stamped into the app, installer, and tests.
 - **Verifiable installer.** `tools/verify-release.ps1` proves the setup payload is byte-identical to the shipped portable and re-checks every checksum.

@@ -1,4 +1,4 @@
-﻿#requires -Version 5.1
+#requires -Version 5.1
 <#
 .SYNOPSIS
     Bumps the ClipboardApp semantic version in exactly one place and keeps the
@@ -107,7 +107,7 @@ foreach ($doc in $docTargets) {
     if ($text -notmatch [regex]::Escape($oldVersion)) { continue }
     $text = $text.Replace($oldVersion, $newVersion)
     Set-Content -Path $doc -Value $text -Encoding UTF8 -NoNewline
-    Write-Host "  updated $([System.IO.Path]::GetRelativePath($repoRoot, $doc))" -ForegroundColor Green
+    Write-Host "  updated $(Split-Path -Leaf $doc)" -ForegroundColor Green
 }
 
 Write-Host ""

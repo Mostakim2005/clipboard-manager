@@ -409,7 +409,7 @@ namespace ClipboardApp.WinForms
         {
             bool isShowing = Visible
                              && WindowState != FormWindowState.Minimized
-                             && NativeMethods.GetForegroundWindow() == Handle;
+                             && (NativeMethods.GetForegroundWindow() == Handle || ContainsFocus || ActiveForm == this);
 
             if (isShowing)
             {
