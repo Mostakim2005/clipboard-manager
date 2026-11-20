@@ -254,8 +254,14 @@ namespace ClipboardApp.WinForms.Dialogs
 
             try
             {
-                Clipboard.SetText(secret);
-                CopyRequested?.Invoke(this, secret);
+                if (CopyRequested != null)
+                {
+                    CopyRequested.Invoke(this, secret);
+                }
+                else
+                {
+                    Clipboard.SetText(secret);
+                }
 
                 btnCopy.Text = "✓ Copied!";
                 btnCopy.BackColor = Color.FromArgb(16, 185, 129);

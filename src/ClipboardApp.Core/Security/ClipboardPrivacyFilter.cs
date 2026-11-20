@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using ClipboardApp.Core.Interop;
@@ -19,16 +20,18 @@ namespace ClipboardApp.Core.Security
         private static readonly uint FormatCanUploadToCloud = NativeMethods.RegisterClipboardFormat(CanUploadToCloud);
         private static readonly uint FormatViewerIgnore = NativeMethods.RegisterClipboardFormat(ClipboardViewerIgnore);
 
-        // Regex patterns for sensitive content
+        private static readonly TimeSpan s_regexTimeout = TimeSpan.FromMilliseconds(250);
+
+        // Regex patterns for sensitive content (supports optional spaces/hyphens in card numbers & Mastercard 2-series)
         private static readonly Regex s_creditCardRegex = new(
-            @"\b(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|3[47][0-9]{13}|6(?:011|5[0-9]{2})[0-9]{12})\b",
-            RegexOptions.Compiled);
+            @"(?<!\d)(?:4(?:[\s-]?\d){12}(?:(?:[\s-]?\d){3})?|(?:5[1-5]|222[1-9]|22[3-9]\d|2[3-6]\d{2}|27[01]\d|2720)(?:[\s-]?\d){12,14}|3[47](?:[\s-]?\d){13}|6(?:011|5\d{2})(?:[\s-]?\d){12})(?!\d)",
+            RegexOptions.Compiled, s_regexTimeout);
 
         private static readonly Regex s_apiKeyRegex = new(
             @"(?:" +
             @"AKIA[0-9A-Z]{16}|" +                                                  // AWS Access Key ID
-            @"ghp_[0-9a-zA-Z]{36}|github_pat_[0-9a-zA-Z_]{82}|" +                   // GitHub Personal Access Token
-            @"xox[baprs]-[0-9a-zA-Z]{10,48}|" +                                    // Slack token
+            @"gh[pousr]_[0-9a-zA-Z]{36}|github_pat_[0-9a-zA-Z_]{82}|" +             // GitHub tokens
+            @"xox[baprs]-[0-9a-zA-Z\-]{10,64}|" +                                  // Slack token (with hyphens)
             @"sk-ant-[0-9a-zA-Z_\-]{32,}|" +                                       // Anthropic Claude API key
             @"sk-proj-[0-9a-zA-Z_\-]{32,}|" +                                      // OpenAI Project API key
             @"sk-[0-9a-zA-Z]{32,}|" +                                              // DeepSeek / OpenAI secret key
@@ -37,11 +40,11 @@ namespace ClipboardApp.Core.Security
             @"hf_[0-9a-zA-Z]{34,}|" +                                              // HuggingFace token
             @"(?:api[_-]?key|secret[_-]?key|access[_-]?token)[\s:=]+['""]?[0-9a-zA-Z\-_]{16,}['""]?" + // Generic label=key
             @")",
-            RegexOptions.Compiled | RegexOptions.IgnoreCase);
+            RegexOptions.Compiled | RegexOptions.IgnoreCase, s_regexTimeout);
 
         private static readonly Regex s_privateKeyRegex = new(
-            @"-----BEGIN [A-Z ]+ PRIVATE KEY-----",
-            RegexOptions.Compiled);
+            @"-----BEGIN (?:[A-Z ]+ PRIVATE KEY|PGP PRIVATE KEY BLOCK)-----",
+            RegexOptions.Compiled, s_regexTimeout);
 
         /// <summary>
         /// Checks if the clipboard data has explicit flags requesting exclusion from history or monitor tools.
@@ -65,8 +68,7 @@ namespace ClipboardApp.Core.Security
                 if (dataObject.GetDataPresent(CanIncludeInHistory))
                 {
                     var val = dataObject.GetData(CanIncludeInHistory);
-                    if (val is int intVal && intVal == 0) return true;
-                    if (val is bool boolVal && !boolVal) return true;
+                    if (IsZeroDwordOrFalse(val)) return true;
                 }
             }
             catch
@@ -77,6 +79,35 @@ namespace ClipboardApp.Core.Security
             return false;
         }
 
+        private static bool IsZeroDwordOrFalse(object? val)
+        {
+            if (val is int intVal) return intVal == 0;
+            if (val is uint uintVal) return uintVal == 0;
+            if (val is bool boolVal) return !boolVal;
+            if (val is byte[] bytes && bytes.Length >= 4)
+            {
+                return BitConverter.ToInt32(bytes, 0) == 0;
+            }
+            if (val is MemoryStream ms && ms.Length >= 4)
+            {
+                long pos = ms.Position;
+                try
+                {
+                    ms.Position = 0;
+                    Span<byte> buf = stackalloc byte[4];
+                    if (ms.Read(buf) == 4)
+                    {
+                        return BitConverter.ToInt32(buf) == 0;
+                    }
+                }
+                finally
+                {
+                    if (ms.CanSeek) ms.Position = pos;
+                }
+            }
+            return false;
+        }
+
         /// <summary>
         /// Checks if the source process is in the ignored/excluded applications list.
         /// </summary>
@@ -84,9 +115,10 @@ namespace ClipboardApp.Core.Security
         {
             if (string.IsNullOrWhiteSpace(sourceAppName) || ignoredApps == null) return false;
 
-            var cleanSource = sourceAppName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
-                ? sourceAppName.Substring(0, sourceAppName.Length - 4)
-                : sourceAppName;
+            var trimmedSource = sourceAppName.Trim();
+            var cleanSource = trimmedSource.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
+                ? trimmedSource.Substring(0, trimmedSource.Length - 4)
+                : trimmedSource;
 
             foreach (var app in ignoredApps)
             {
@@ -110,23 +142,32 @@ namespace ClipboardApp.Core.Security
             reason = string.Empty;
             if (string.IsNullOrWhiteSpace(text)) return false;
 
-            if (s_privateKeyRegex.IsMatch(text))
+            try
             {
-                reason = "Private Key";
-                return true;
-            }
+                if (s_privateKeyRegex.IsMatch(text))
+                {
+                    reason = "Private Key";
+                    return true;
+                }
 
-            if (s_apiKeyRegex.IsMatch(text))
-            {
-                reason = "API Key / Token";
-                return true;
-            }
+                if (s_apiKeyRegex.IsMatch(text))
+                {
+                    reason = "API Key / Token";
+                    return true;
+                }
 
-            var cardMatch = s_creditCardRegex.Match(text);
-            if (cardMatch.Success && PassesLuhn(cardMatch.Value))
+                foreach (Match cardMatch in s_creditCardRegex.Matches(text))
+                {
+                    if (cardMatch.Success && PassesLuhn(cardMatch.Value))
+                    {
+                        reason = "Credit Card Number";
+                        return true;
+                    }
+                }
+            }
+            catch (RegexMatchTimeoutException)
             {
-                reason = "Credit Card Number";
-                return true;
+                // Guard against catastrophic backtracking on very large clipboard strings.
             }
 
             return false;

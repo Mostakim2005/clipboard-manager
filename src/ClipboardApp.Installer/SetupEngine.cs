@@ -90,11 +90,10 @@ public static class SetupEngine
         if (!string.IsNullOrEmpty(currentExe) && File.Exists(currentExe))
         {
             string uninstallExe = Path.Combine(targetDir, "Uninstall.exe");
-            try
+            if (!string.Equals(Path.GetFullPath(currentExe), Path.GetFullPath(uninstallExe), StringComparison.OrdinalIgnoreCase))
             {
                 File.Copy(currentExe, uninstallExe, true);
             }
-            catch { }
         }
     }
 
@@ -203,37 +202,62 @@ public static class SetupEngine
         catch { }
     }
 
+    public static string? GetRegisteredInstallLocation()
+    {
+        try
+        {
+            using var key = Registry.CurrentUser.OpenSubKey($@"Software\Microsoft\Windows\CurrentVersion\Uninstall\{AppName}");
+            var loc = key?.GetValue("InstallLocation") as string;
+            return string.IsNullOrWhiteSpace(loc) ? null : loc.Trim();
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public static bool IsSafeUninstallDirectory(string? dir)
+    {
+        if (string.IsNullOrWhiteSpace(dir) || !Directory.Exists(dir)) return false;
+
+        string fullDir = Path.GetFullPath(dir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        string? root = Path.GetPathRoot(fullDir)?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        if (string.Equals(fullDir, root, StringComparison.OrdinalIgnoreCase)) return false;
+
+        var forbidden = new[]
+        {
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
+            Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+            Environment.GetFolderPath(Environment.SpecialFolder.Windows),
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads"),
+        };
+
+        foreach (var f in forbidden)
+        {
+            if (string.IsNullOrWhiteSpace(f)) continue;
+            string normF = Path.GetFullPath(f).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            if (string.Equals(fullDir, normF, StringComparison.OrdinalIgnoreCase)) return false;
+        }
+
+        // Only delete a directory that actually contains ClipboardApp.exe
+        return File.Exists(Path.Combine(fullDir, "ClipboardApp.exe"));
+    }
+
     public static void PerformUninstall(bool silent)
     {
+        // Resolve registered InstallLocation BEFORE deleting the Uninstall registry key.
+        string installDir = GetRegisteredInstallLocation() ?? GetDefaultInstallDir();
+
         KillRunningProcesses();
         RemoveShortcut(GetDesktopShortcutPath());
         RemoveShortcut(GetStartMenuShortcutPath());
         SetStartupRun("", false);
         UnregisterUninstall();
-
-        string installDir = GetDefaultInstallDir();
-        string currentExe = Environment.ProcessPath ?? "";
-        if (!string.IsNullOrEmpty(currentExe))
-        {
-            string? dir = Path.GetDirectoryName(currentExe);
-            if (!string.IsNullOrEmpty(dir) && Directory.Exists(dir))
-            {
-                installDir = dir;
-            }
-        }
-
-        try
-        {
-            ProcessStartInfo psi = new()
-            {
-                FileName = "cmd.exe",
-                Arguments = $"/C choice /C Y /N /D Y /T 2 & rmdir /S /Q \"{installDir}\"",
-                CreateNoWindow = true,
-                UseShellExecute = false
-            };
-            Process.Start(psi);
-        }
-        catch { }
 
         if (!silent)
         {
@@ -243,5 +267,27 @@ public static class SetupEngine
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Information);
         }
+
+        if (!IsSafeUninstallDirectory(installDir)) return;
+
+        try
+        {
+            // Run self-delete AFTER modal confirmation closes, passing path safely via PowerShell -LiteralPath.
+            string escaped = installDir.Replace("'", "''");
+            ProcessStartInfo psi = new()
+            {
+                FileName = "powershell.exe",
+                CreateNoWindow = true,
+                UseShellExecute = false
+            };
+            psi.ArgumentList.Add("-NoProfile");
+            psi.ArgumentList.Add("-NonInteractive");
+            psi.ArgumentList.Add("-WindowStyle");
+            psi.ArgumentList.Add("Hidden");
+            psi.ArgumentList.Add("-Command");
+            psi.ArgumentList.Add($"Start-Sleep -Seconds 2; Remove-Item -LiteralPath '{escaped}' -Recurse -Force -ErrorAction SilentlyContinue");
+            Process.Start(psi);
+        }
+        catch { }
     }
 }

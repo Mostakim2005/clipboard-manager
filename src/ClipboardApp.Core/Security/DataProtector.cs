@@ -8,8 +8,11 @@ namespace ClipboardApp.Core.Security
     {
         private static readonly byte[] s_entropy = Encoding.UTF8.GetBytes("ClipboardApp.DPAPI.v1");
 
-        public static bool LastOperationFailed { get; private set; }
-        public static string? LastError { get; private set; }
+        private static volatile bool s_lastOperationFailed;
+        private static volatile string? s_lastError;
+
+        public static bool LastOperationFailed => s_lastOperationFailed;
+        public static string? LastError => s_lastError;
 
         public static byte[] EncryptBytes(byte[]? plain)
         {
@@ -17,15 +20,22 @@ namespace ClipboardApp.Core.Security
             try
             {
                 var protectedBytes = ProtectedData.Protect(plain, s_entropy, DataProtectionScope.CurrentUser);
-                LastOperationFailed = false;
+                s_lastOperationFailed = false;
+                s_lastError = null;
                 return protectedBytes;
+            }
+            catch (PlatformNotSupportedException ex)
+            {
+                // Explicit non-Windows test environment fallback only.
+                s_lastOperationFailed = true;
+                s_lastError = ex.Message;
+                return plain;
             }
             catch (Exception ex)
             {
-                LastOperationFailed = true;
-                LastError = ex.Message;
-                // Fallback if DPAPI is unavailable (e.g. non-Windows test environment)
-                return plain;
+                s_lastOperationFailed = true;
+                s_lastError = ex.Message;
+                throw;
             }
         }
 
@@ -46,16 +56,14 @@ namespace ClipboardApp.Core.Security
         public static string EncryptString(string plain)
         {
             if (string.IsNullOrEmpty(plain)) return "";
-            try
-            {
-                var bytes = Encoding.UTF8.GetBytes(plain);
-                var encrypted = EncryptBytes(bytes);
-                return "ENC:" + Convert.ToBase64String(encrypted);
-            }
-            catch
+            var bytes = Encoding.UTF8.GetBytes(plain);
+            var encrypted = EncryptBytes(bytes);
+            // Never disguise unencrypted fallback bytes under the "ENC:" ciphertext prefix.
+            if (s_lastOperationFailed)
             {
                 return plain;
             }
+            return "ENC:" + Convert.ToBase64String(encrypted);
         }
 
         public static string DecryptString(string cipher)

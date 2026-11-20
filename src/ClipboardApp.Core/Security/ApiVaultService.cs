@@ -19,7 +19,7 @@ namespace ClipboardApp.Core.Security
     /// with a master password (PBKDF2-SHA256). No secret is ever written in
     /// plaintext to disk.
     /// </summary>
-    public sealed class ApiVaultService
+    public sealed class ApiVaultService : IDisposable
     {
         private const int KeySize = 32;
         private const int NonceSize = 12;
@@ -27,19 +27,27 @@ namespace ClipboardApp.Core.Security
         private const int Pbkdf2Iterations = 310_000;
         private static readonly byte[] KeyEntropy = Encoding.UTF8.GetBytes("ClipboardApp.ApiVault.Key.v1");
         private static readonly byte[] SecretAad = Encoding.UTF8.GetBytes("ClipboardApp.ApiKey.v1");
+        private static readonly JsonSerializerOptions s_jsonOptions = new() { WriteIndented = true };
 
         private readonly string _keyFilePath;
         private readonly object _sync = new();
         private byte[]? _vaultKey;
         private VaultKeyFile? _keyFile;
         private DateTime _unlockUntilUtc = DateTime.MinValue;
+        private DateTime _lastAccessUtc = DateTime.UtcNow;
 
         public bool IsPasswordProtected { get; private set; }
+        public bool IsCorrupted { get; private set; }
+        public string? LastError { get; private set; }
         public bool IsLocked
         {
             get { lock (_sync) return _vaultKey == null; }
         }
-        public DateTime LastAccessUtc { get; private set; } = DateTime.UtcNow;
+        public DateTime LastAccessUtc
+        {
+            get { lock (_sync) return _lastAccessUtc; }
+            private set { lock (_sync) _lastAccessUtc = value; }
+        }
 
         public ApiVaultService(string? keyFilePath = null)
         {
@@ -54,21 +62,29 @@ namespace ClipboardApp.Core.Security
         {
             Directory.CreateDirectory(Path.GetDirectoryName(_keyFilePath)!);
 
-            if (File.Exists(_keyFilePath))
+            if (!File.Exists(_keyFilePath))
             {
-                try
-                {
-                    _keyFile = JsonSerializer.Deserialize<VaultKeyFile>(File.ReadAllText(_keyFilePath));
-                }
-                catch
-                {
-                    _keyFile = null;
-                }
+                CreateDpapiVault();
+                return;
+            }
+
+            try
+            {
+                _keyFile = JsonSerializer.Deserialize<VaultKeyFile>(File.ReadAllText(_keyFilePath));
+            }
+            catch (Exception ex)
+            {
+                // Never overwrite an existing key file on a transient read or parse failure.
+                _keyFile = null;
+                IsCorrupted = true;
+                LastError = ex.Message;
+                return;
             }
 
             if (_keyFile == null || _keyFile.Version != 1 || string.IsNullOrEmpty(_keyFile.WrappedKey))
             {
-                CreateDpapiVault();
+                IsCorrupted = true;
+                LastError = "Vault key file is invalid or unsupported.";
                 return;
             }
 
@@ -104,8 +120,9 @@ namespace ClipboardApp.Core.Security
                 if (key.Length != KeySize) return false;
                 lock (_sync)
                 {
+                    if (_vaultKey != null) CryptographicOperations.ZeroMemory(_vaultKey);
                     _vaultKey = key;
-                    LastAccessUtc = DateTime.UtcNow;
+                    _lastAccessUtc = DateTime.UtcNow;
                 }
                 return true;
             }
@@ -117,25 +134,31 @@ namespace ClipboardApp.Core.Security
 
         public bool Unlock(string password)
         {
+            if (IsCorrupted) return false;
             if (!IsPasswordProtected)
             {
                 return TryUnlockWithDpapi();
             }
             if (string.IsNullOrEmpty(password) || _keyFile == null) return false;
 
+            byte[]? passwordBytes = null;
+            byte[]? derived = null;
+            byte[]? key = null;
             try
             {
                 byte[] salt = Convert.FromBase64String(_keyFile.Salt);
                 byte[] nonce = Convert.FromBase64String(_keyFile.Nonce);
                 byte[] wrapped = Convert.FromBase64String(_keyFile.WrappedKey);
-                byte[] derived = Rfc2898DeriveBytes.Pbkdf2(
-                    Encoding.UTF8.GetBytes(password), salt, Pbkdf2Iterations, HashAlgorithmName.SHA256, KeySize);
+                int iterations = _keyFile.Iterations > 0 ? _keyFile.Iterations : Pbkdf2Iterations;
+                passwordBytes = Encoding.UTF8.GetBytes(password);
+                derived = Rfc2898DeriveBytes.Pbkdf2(
+                    passwordBytes, salt, iterations, HashAlgorithmName.SHA256, KeySize);
                 int cipherLength = wrapped.Length - TagSize;
                 if (cipherLength != KeySize) return false;
 
                 byte[] cipher = new byte[cipherLength];
                 byte[] tag = new byte[TagSize];
-                byte[] key = new byte[cipherLength];
+                key = new byte[cipherLength];
                 Buffer.BlockCopy(wrapped, 0, cipher, 0, cipherLength);
                 Buffer.BlockCopy(wrapped, cipherLength, tag, 0, TagSize);
 
@@ -144,14 +167,22 @@ namespace ClipboardApp.Core.Security
 
                 lock (_sync)
                 {
+                    if (_vaultKey != null) CryptographicOperations.ZeroMemory(_vaultKey);
                     _vaultKey = key;
-                    LastAccessUtc = DateTime.UtcNow;
+                    key = null;
+                    _lastAccessUtc = DateTime.UtcNow;
                 }
                 return true;
             }
             catch
             {
                 return false;
+            }
+            finally
+            {
+                if (passwordBytes != null) CryptographicOperations.ZeroMemory(passwordBytes);
+                if (derived != null) CryptographicOperations.ZeroMemory(derived);
+                if (key != null) CryptographicOperations.ZeroMemory(key);
             }
         }
 
@@ -175,12 +206,15 @@ namespace ClipboardApp.Core.Security
             lock (_sync)
             {
                 if (_vaultKey == null) return false;
+                byte[]? passwordBytes = null;
+                byte[]? derived = null;
                 try
                 {
                     byte[] salt = RandomNumberGenerator.GetBytes(16);
                     byte[] nonce = RandomNumberGenerator.GetBytes(NonceSize);
-                    byte[] derived = Rfc2898DeriveBytes.Pbkdf2(
-                        Encoding.UTF8.GetBytes(password), salt, Pbkdf2Iterations, HashAlgorithmName.SHA256, KeySize);
+                    passwordBytes = Encoding.UTF8.GetBytes(password);
+                    derived = Rfc2898DeriveBytes.Pbkdf2(
+                        passwordBytes, salt, Pbkdf2Iterations, HashAlgorithmName.SHA256, KeySize);
                     byte[] cipher = new byte[KeySize];
                     byte[] tag = new byte[TagSize];
                     using (var aes = new AesGcm(derived, TagSize))
@@ -192,22 +226,29 @@ namespace ClipboardApp.Core.Security
                     Buffer.BlockCopy(cipher, 0, combined, 0, cipher.Length);
                     Buffer.BlockCopy(tag, 0, combined, cipher.Length, tag.Length);
 
-                    _keyFile = new VaultKeyFile
+                    var nextKeyFile = new VaultKeyFile
                     {
                         Version = 1,
                         Mode = "password",
+                        Iterations = Pbkdf2Iterations,
                         Salt = Convert.ToBase64String(salt),
                         Nonce = Convert.ToBase64String(nonce),
                         WrappedKey = Convert.ToBase64String(combined)
                     };
-                    WriteKeyFile();
+                    WriteKeyFile(nextKeyFile);
+                    _keyFile = nextKeyFile;
                     IsPasswordProtected = true;
-                    LastAccessUtc = DateTime.UtcNow;
+                    _lastAccessUtc = DateTime.UtcNow;
                     return true;
                 }
                 catch
                 {
                     return false;
+                }
+                finally
+                {
+                    if (passwordBytes != null) CryptographicOperations.ZeroMemory(passwordBytes);
+                    if (derived != null) CryptographicOperations.ZeroMemory(derived);
                 }
             }
         }
@@ -220,15 +261,16 @@ namespace ClipboardApp.Core.Security
                 try
                 {
                     var wrapped = ProtectedData.Protect(_vaultKey, KeyEntropy, DataProtectionScope.CurrentUser);
-                    _keyFile = new VaultKeyFile
+                    var nextKeyFile = new VaultKeyFile
                     {
                         Version = 1,
                         Mode = "dpapi",
                         WrappedKey = Convert.ToBase64String(wrapped)
                     };
-                    WriteKeyFile();
+                    WriteKeyFile(nextKeyFile);
+                    _keyFile = nextKeyFile;
                     IsPasswordProtected = false;
-                    LastAccessUtc = DateTime.UtcNow;
+                    _lastAccessUtc = DateTime.UtcNow;
                     return true;
                 }
                 catch
@@ -247,11 +289,18 @@ namespace ClipboardApp.Core.Security
                 byte[] nonce = RandomNumberGenerator.GetBytes(NonceSize);
                 byte[] cipher = new byte[plain.Length];
                 byte[] tag = new byte[TagSize];
-                using (var aes = new AesGcm(_vaultKey, TagSize))
+                try
                 {
-                    aes.Encrypt(nonce, plain, cipher, tag, SecretAad);
+                    using (var aes = new AesGcm(_vaultKey, TagSize))
+                    {
+                        aes.Encrypt(nonce, plain, cipher, tag, SecretAad);
+                    }
                 }
-                LastAccessUtc = DateTime.UtcNow;
+                finally
+                {
+                    CryptographicOperations.ZeroMemory(plain);
+                }
+                _lastAccessUtc = DateTime.UtcNow;
                 return new VaultCiphertext
                 {
                     Nonce = Convert.ToBase64String(nonce),
@@ -270,18 +319,28 @@ namespace ClipboardApp.Core.Security
                 byte[] cipher = Convert.FromBase64String(ciphertext.Cipher);
                 byte[] tag = Convert.FromBase64String(ciphertext.Tag);
                 byte[] plain = new byte[cipher.Length];
-                using (var aes = new AesGcm(_vaultKey, TagSize))
+                try
                 {
-                    aes.Decrypt(nonce, cipher, tag, plain, SecretAad);
+                    using (var aes = new AesGcm(_vaultKey, TagSize))
+                    {
+                        aes.Decrypt(nonce, cipher, tag, plain, SecretAad);
+                    }
+                    _lastAccessUtc = DateTime.UtcNow;
+                    return Encoding.UTF8.GetString(plain);
                 }
-                LastAccessUtc = DateTime.UtcNow;
-                return Encoding.UTF8.GetString(plain);
+                finally
+                {
+                    CryptographicOperations.ZeroMemory(plain);
+                }
             }
         }
 
         public void Touch()
         {
-            LastAccessUtc = DateTime.UtcNow;
+            lock (_sync)
+            {
+                _lastAccessUtc = DateTime.UtcNow;
+            }
         }
 
         /// <summary>
@@ -320,38 +379,40 @@ namespace ClipboardApp.Core.Security
             if (!IsPasswordProtected || minutes <= 0) return false;
             lock (_sync)
             {
+                if (_vaultKey == null) return false;
                 // An explicit unlock window wins over the idle timer.
                 if (DateTime.UtcNow < _unlockUntilUtc) return false;
-                if ((DateTime.UtcNow - LastAccessUtc).TotalMinutes < minutes) return false;
+                if ((DateTime.UtcNow - _lastAccessUtc).TotalMinutes < minutes) return false;
+                CryptographicOperations.ZeroMemory(_vaultKey);
+                _vaultKey = null;
+                _unlockUntilUtc = DateTime.MinValue;
+                return true;
             }
+        }
+
+        public void Dispose()
+        {
             Lock();
-            return true;
         }
 
         /// <summary>Seconds left before the timed unlock window closes (0 when closed).</summary>
         public int UnlockSecondsRemaining => (int)Math.Ceiling(UnlockWindowRemaining.TotalSeconds);
 
-        private void WriteKeyFile()
+        private void WriteKeyFile(VaultKeyFile? keyFileOverride = null)
         {
-            try
-            {
-                var dir = Path.GetDirectoryName(_keyFilePath);
-                if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
-                var tmp = _keyFilePath + ".tmp";
-                File.WriteAllText(tmp, JsonSerializer.Serialize(_keyFile, new JsonSerializerOptions { WriteIndented = true }));
-                File.Move(tmp, _keyFilePath, overwrite: true);
-            }
-            catch
-            {
-                // A vault that cannot persist its key must not pretend it saved.
-                throw;
-            }
+            var target = keyFileOverride ?? _keyFile;
+            var dir = Path.GetDirectoryName(_keyFilePath);
+            if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+            var tmp = _keyFilePath + ".tmp";
+            File.WriteAllText(tmp, JsonSerializer.Serialize(target, s_jsonOptions));
+            File.Move(tmp, _keyFilePath, overwrite: true);
         }
 
         private sealed class VaultKeyFile
         {
             public int Version { get; set; } = 1;
             public string Mode { get; set; } = "dpapi";
+            public int Iterations { get; set; }
             public string WrappedKey { get; set; } = "";
             public string Salt { get; set; } = "";
             public string Nonce { get; set; } = "";
