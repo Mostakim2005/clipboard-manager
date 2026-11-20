@@ -1,8 +1,8 @@
-# Engineering Handoff — ClipboardApp
+﻿# Engineering Handoff â€” ClipboardApp
 
 > **1-Line Summary:** The current state of the codebase, where every subsystem lives, what is verified, and what an incoming agent should do next.
 
-**Last updated:** 2026-11-07 · **Version:** 3.1.1 · **Branch:** `main` · **Remote:** `github.com/Mostakim2005/clipboard-manager`
+**Last updated:** 2026-11-07 Â· **Version:** 3.2.0 Â· **Branch:** `main` Â· **Remote:** `github.com/Mostakim2005/clipboard-manager`
 
 ---
 
@@ -10,9 +10,9 @@
 
 | Item | Status |
 | :--- | :--- |
-| Version | `3.1.1` in `Directory.Build.props` (single source) |
-| Build | `dotnet build ClipboardApp.sln -c Release` — 0 warnings, 0 errors |
-| Tests | `dotnet test ClipboardApp.sln -c Release` — 116/116 |
+| Version | `3.2.0` in `Directory.Build.props` (single source) |
+| Build | `dotnet build ClipboardApp.sln -c Release` â€” 0 warnings, 0 errors |
+| Tests | `dotnet test ClipboardApp.sln -c Release` â€” 116/116 |
 | Portable release | Built by `.github/workflows/build.yml`, attached to GitHub Releases |
 | Installer | On demand via `tools/build_releases.ps1 -BuildInstaller`, verified by `tools/verify-release.ps1` |
 | Documentation | Rebuilt around `PRODUCT.md`, `ARCHITECTURE.md`, `DECISIONS_AND_TRAPS.md`, `VISUAL_GUIDE.html` |
@@ -104,7 +104,7 @@
 
 ## 3. Tests
 
-`tests/ClipboardApp.Tests/` — 116 tests across 21 files:
+`tests/ClipboardApp.Tests/` â€” 116 tests across 21 files:
 
 `ApiVaultTests`, `AppIconTests`, `BatchPasteTests`, `CardGestureTests`, `ClipboardIdentityTests`, `ContextMenuTests`, `FilterServiceTests`, `HotkeyParserTests`, `InteropLayoutTests`, `MainWindowTests`, `RichMergeTests`, `SearchServiceTests`, `SecurityTests`, `SelectionModelTests`, `StorageTests`, `TagSuggestionTests`, `TargetWindowTrackerTests`, `TransformAndCleanupTests`, `UiFeatureSmokeTests`, `UiSmokeTests`, `VersionTests`.
 

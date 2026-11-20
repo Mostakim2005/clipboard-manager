@@ -1,9 +1,9 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ClipboardApp — Visual Guide</title>
+<title>ClipboardApp â€” Visual Guide</title>
 <style>
   :root {
     --font: -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", Inter, system-ui, sans-serif;
@@ -299,7 +299,7 @@
         <b>ClipboardApp</b>
         <span>Visual Guide</span>
       </div>
-      <span class="pill-ver">v3.1.1</span>
+      <span class="pill-ver">v3.2.0</span>
     </div>
     <button class="theme-toggle" id="themeBtn" type="button" aria-label="Switch colour theme">
       <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.6v2.2M12 19.2v2.2M2.6 12h2.2M19.2 12h2.2M5.4 5.4l1.6 1.6M17 17l1.6 1.6M18.6 5.4L17 7M7 17l-1.6 1.6"/></svg>
@@ -321,11 +321,11 @@
   <section class="panel active" id="panel-overview" role="tabpanel">
     <div class="hero">
       <h1>A private, keyboard-first <em>clipboard manager</em> for Windows.</h1>
-      <p class="lede">Everything you copy — text, links, colours, files, images — stays on your machine, encrypted at rest with Windows DPAPI. One hotkey, find it, paste it into the right window, and never lose your place.</p>
+      <p class="lede">Everything you copy â€” text, links, colours, files, images â€” stays on your machine, encrypted at rest with Windows DPAPI. One hotkey, find it, paste it into the right window, and never lose your place.</p>
     </div>
 
     <div class="stats">
-      <div class="stat accent"><b>3.1.1</b><span>Current version</span></div>
+      <div class="stat accent"><b>3.2.0</b><span>Current version</span></div>
       <div class="stat good"><b>116/116</b><span>Tests passing</span></div>
       <div class="stat"><b>0</b><span>Telemetry events</span></div>
       <div class="stat"><b>Portable</b><span>Default deliverable</span></div>
@@ -334,22 +334,22 @@
     <h2 class="sec">The Three Promises</h2>
     <div class="grid-3">
       <div class="feat">
-        <div class="ic">🔒</div>
+        <div class="ic">ðŸ”’</div>
         <h3>Nothing leaves the PC</h3>
         <p>Local SQLite, DPAPI-encrypted content and images, no account, no network calls. Password-manager clips are ignored before they are ever stored.</p>
         <div class="tags"><span class="tag on">local-only</span><span class="tag">DPAPI</span></div>
       </div>
       <div class="feat">
-        <div class="ic">🎯</div>
+        <div class="ic">ðŸŽ¯</div>
         <h3>Never paste into the wrong window</h3>
         <p>Paste verifies the target owns the foreground before sending Ctrl+V. If it cannot prove the target, it copies instead of guessing.</p>
         <div class="tags"><span class="tag on">target-verified</span><span class="tag">SendInput</span></div>
       </div>
       <div class="feat">
-        <div class="ic">🧊</div>
+        <div class="ic">ðŸ§Š</div>
         <h3>The list never jumps</h3>
         <p>New copies are saved in the background. The list you are reading stays exactly where it is, so "item 3" is always item 3.</p>
-        <div class="tags"><span class="tag on">stable snapshot</span><span class="tag">#1–#9</span></div>
+        <div class="tags"><span class="tag on">stable snapshot</span><span class="tag">#1â€“#9</span></div>
       </div>
     </div>
 
@@ -428,9 +428,9 @@
     <div class="card">
       <div class="flow">
         <div class="step"><div class="num">1</div><div class="body"><b>Clipboard changes</b><span>Windows sends <code>WM_CLIPBOARDUPDATE</code> to <code>ClipboardMonitor</code>.</span></div></div>
-        <div class="step danger"><div class="num">2</div><div class="body"><b>Self-write check</b><span>If the app wrote the clipboard itself, stop — otherwise it would capture its own paste and loop.</span></div></div>
+        <div class="step danger"><div class="num">2</div><div class="body"><b>Self-write check</b><span>If the app wrote the clipboard itself, stop â€” otherwise it would capture its own paste and loop.</span></div></div>
         <div class="step"><div class="num">3</div><div class="body"><b>Privacy filter</b><span>Ignored apps and password-manager privacy flags are rejected before anything is read.</span></div></div>
-        <div class="step"><div class="num">4</div><div class="body"><b>Format priority</b><span>File drop → image → text → HTML → RTF. The richest safe representation wins.</span></div></div>
+        <div class="step"><div class="num">4</div><div class="body"><b>Format priority</b><span>File drop â†’ image â†’ text â†’ HTML â†’ RTF. The richest safe representation wins.</span></div></div>
         <div class="step"><div class="num">5</div><div class="body"><b>Identity + dedupe</b><span>Type-prefixed SHA-256 decides whether this is new, a recopy, or a duplicate.</span></div></div>
         <div class="step ok"><div class="num">6</div><div class="body"><b>Store, do not rebuild</b><span>The entry is encrypted and saved. The visible list is marked stale but left untouched.</span></div></div>
       </div>
@@ -439,7 +439,7 @@
     <h2 class="sec">Paste Flow</h2>
     <div class="card">
       <div class="flow">
-        <div class="step"><div class="num">1</div><div class="body"><b>Build payload</b><span>Single entry, merged batch, or sequential queue — plain or rich.</span></div></div>
+        <div class="step"><div class="num">1</div><div class="body"><b>Build payload</b><span>Single entry, merged batch, or sequential queue â€” plain or rich.</span></div></div>
         <div class="step"><div class="num">2</div><div class="body"><b>Resolve target</b><span>The previously active window is checked; a stale or invalid target opens the picker.</span></div></div>
         <div class="step"><div class="num">3</div><div class="body"><b>Write clipboard</b><span>Self-capture suppression is set for the duration of the write.</span></div></div>
         <div class="step"><div class="num">4</div><div class="body"><b>Verify foreground</b><span>If the target does not own the foreground, the app copies and stays visible.</span></div></div>
@@ -471,7 +471,7 @@
     <h2 class="sec">Product Decisions</h2>
     <div id="decisionList"></div>
 
-    <h2 class="sec">Landmines — Do Not Touch</h2>
+    <h2 class="sec">Landmines â€” Do Not Touch</h2>
     <div id="trapList"></div>
   </section>
 
@@ -489,7 +489,7 @@
       </div>
       <div class="wish">
         <h3>Plugin / script actions</h3>
-        <p>Add explicit, permissioned actions to selected clips — without turning the app into a default scripting host.</p>
+        <p>Add explicit, permissioned actions to selected clips â€” without turning the app into a default scripting host.</p>
         <span class="status">Not started</span>
       </div>
       <div class="wish">
@@ -499,7 +499,7 @@
       </div>
       <div class="wish">
         <h3>Per-app capture rules</h3>
-        <p>Richer rules than a simple ignore list — e.g. images only from a design tool, never text from a terminal.</p>
+        <p>Richer rules than a simple ignore list â€” e.g. images only from a design tool, never text from a terminal.</p>
         <span class="status">Not started</span>
       </div>
     </div>
@@ -507,10 +507,10 @@
     <h2 class="sec">Release Checklist</h2>
     <div class="card">
       <div class="flow">
-        <div class="step ok"><div class="num">✓</div><div class="body"><b>Release build, zero warnings</b><span><code>dotnet build ClipboardApp.sln -c Release</code></span></div></div>
-        <div class="step ok"><div class="num">✓</div><div class="body"><b>Full test suite</b><span><code>dotnet test ClipboardApp.sln -c Release</code> — 116/116</span></div></div>
-        <div class="step ok"><div class="num">✓</div><div class="body"><b>Portable artifact</b><span>Built from source, attached to a GitHub Release, never committed.</span></div></div>
-        <div class="step ok"><div class="num">✓</div><div class="body"><b>No secrets, no binaries staged</b><span><code>git status</code> reviewed before every push.</span></div></div>
+        <div class="step ok"><div class="num">âœ“</div><div class="body"><b>Release build, zero warnings</b><span><code>dotnet build ClipboardApp.sln -c Release</code></span></div></div>
+        <div class="step ok"><div class="num">âœ“</div><div class="body"><b>Full test suite</b><span><code>dotnet test ClipboardApp.sln -c Release</code> â€” 116/116</span></div></div>
+        <div class="step ok"><div class="num">âœ“</div><div class="body"><b>Portable artifact</b><span>Built from source, attached to a GitHub Release, never committed.</span></div></div>
+        <div class="step ok"><div class="num">âœ“</div><div class="body"><b>No secrets, no binaries staged</b><span><code>git status</code> reviewed before every push.</span></div></div>
       </div>
     </div>
   </section>
@@ -518,8 +518,8 @@
 </div>
 
 <footer class="foot">
-  <span>ClipboardApp v3.1.1 · local-first, zero telemetry</span>
-  <span>See <a href="PRODUCT.md">PRODUCT.md</a> · <a href="ARCHITECTURE.md">ARCHITECTURE.md</a> · <a href="DECISIONS_AND_TRAPS.md">DECISIONS_AND_TRAPS.md</a></span>
+  <span>ClipboardApp v3.2.0 Â· local-first, zero telemetry</span>
+  <span>See <a href="PRODUCT.md">PRODUCT.md</a> Â· <a href="ARCHITECTURE.md">ARCHITECTURE.md</a> Â· <a href="DECISIONS_AND_TRAPS.md">DECISIONS_AND_TRAPS.md</a></span>
 </footer>
 
 <script>
@@ -559,28 +559,28 @@
 
   /* ---------- feature data ---------- */
   var features = [
-    { ic: "📋", t: "Capture with source tracking", d: "Text, links, colours, file lists, HTML, RTF and images are captured once and tagged with the app they came from.", tags: ["text", "images", "files"] },
-    { ic: "🧊", t: "Stable snapshot history", d: "Captures save in the background without reordering or reselecting the list you are reading.", tags: ["no jump", "FD refresh"] },
-    { ic: "#️⃣", t: "Stable serial numbers", d: "Each visible card shows #N, and the first nine double as 1–9 quick-paste shortcuts.", tags: ["#1–#9", "keyboard"] },
-    { ic: "🔍", t: "Search, filters and grouping", d: "Debounced text search, regex, format pills, permanent date/type/app filters, groups and tag search.", tags: ["regex", "filters"] },
-    { ic: "🖼️", t: "Cards plus rich inspector", d: "Fast list on the left, context-aware preview on the right — code, JSON, colour swatch, zoomable image.", tags: ["split view", "preview"] },
-    { ic: "▦", t: "List and grid parity", d: "Switch to a full-width tile grid without losing selection, filters or keyboard behaviour.", tags: ["grid", "parity"] },
-    { ic: "🎯", t: "Target-verified paste", d: "Enter pastes only after the foreground window is proven to be the intended target; otherwise it copies.", tags: ["SendInput", "safety"] },
-    { ic: "🖱️", t: "Opt-in double-click paste", d: "Off by default. When on, every double-click opens the active-app chooser before pasting.", tags: ["opt-in", "picker"] },
-    { ic: "🔀", t: "Batch merge and sequential paste", d: "Merge checked cards as Plain, .env, JSON, CSV or Rich — or paste them one after another.", tags: ["multi-select", "merge"] },
-    { ic: "🖇️", t: "Mixed text + image merge", d: "Optionally carry images inside CF_HTML/RTF, with a warning and image deselect when the target cannot accept them.", tags: ["opt-in", "rich"] },
-    { ic: "✋", t: "Armed OLE drag and drop", d: "Drag-out requires an explicit arm and disarms on blur. Never steals clicks, checkboxes or double-click.", tags: ["drag", "armed"] },
-    { ic: "🏷️", t: "Tags, aliases and autocomplete", d: "Multiple aliases and tags per entry, with frequency-ranked suggestions that only apply when accepted.", tags: ["tags", "aliases"] },
-    { ic: "🪟", t: "Persistent custom context menu", d: "Hide, show and reorder right-click commands; Customize always stays available so you cannot lock yourself out.", tags: ["menu", "persisted"] },
-    { ic: "🖼️", t: "Aspect-true image thumbnails", d: "Lazily decoded, letterboxed thumbnails with an LRU bound so long image histories stay light.", tags: ["thumbnail", "LRU"] },
-    { ic: "✏️", t: "Transform preview with undo", d: "UPPER, lower, Title, Trim, Base64, URL, JSON, slug, camel, snake — staged as a preview with Save, Cancel and Undo.", tags: ["preview", "undo"] },
-    { ic: "🔐", t: "DPAPI encryption and privacy filters", d: "Content and image bytes encrypted at rest; password-manager clips ignored; sensitive clips masked and auto-expired.", tags: ["DPAPI", "privacy"] },
-    { ic: "🗝️", t: "Encrypted API key vault", d: "AES-256-GCM store behind a DPAPI-wrapped key, optional master password and timed auto-lock.", tags: ["vault", "AES-GCM"] },
-    { ic: "💾", t: "History limits, backup and restore", d: "Bound history by count and age; export or import JSON/CSV, optionally DPAPI-encrypted, with CSV injection defence.", tags: ["limits", "export"] },
-    { ic: "⌨️", t: "Tray, hotkey and startup", d: "Starts quietly in the tray, toggles with one global shortcut captured by pressing keys, not typing them.", tags: ["hotkey", "tray"] },
-    { ic: "🎨", t: "Switchable app-wide styling", d: "Fluent, Acrylic, Classic or Native applied to every app-owned window, menu and dialog — with a native fallback.", tags: ["theme", "native"] },
-    { ic: "♿", t: "Keyboard and contrast accessibility", d: "Every primary action reachable by keyboard, WCAG AA contrast, visible focus, per-monitor V2 DPI.", tags: ["WCAG AA", "DPI"] },
-    { ic: "🏗️", t: "Reproducible build and versioning", d: "One version source, generated checksums, and a setup installer whose payload is proven byte-identical to the portable.", tags: ["version", "checksums"] }
+    { ic: "ðŸ“‹", t: "Capture with source tracking", d: "Text, links, colours, file lists, HTML, RTF and images are captured once and tagged with the app they came from.", tags: ["text", "images", "files"] },
+    { ic: "ðŸ§Š", t: "Stable snapshot history", d: "Captures save in the background without reordering or reselecting the list you are reading.", tags: ["no jump", "FD refresh"] },
+    { ic: "#ï¸âƒ£", t: "Stable serial numbers", d: "Each visible card shows #N, and the first nine double as 1â€“9 quick-paste shortcuts.", tags: ["#1â€“#9", "keyboard"] },
+    { ic: "ðŸ”", t: "Search, filters and grouping", d: "Debounced text search, regex, format pills, permanent date/type/app filters, groups and tag search.", tags: ["regex", "filters"] },
+    { ic: "ðŸ–¼ï¸", t: "Cards plus rich inspector", d: "Fast list on the left, context-aware preview on the right â€” code, JSON, colour swatch, zoomable image.", tags: ["split view", "preview"] },
+    { ic: "â–¦", t: "List and grid parity", d: "Switch to a full-width tile grid without losing selection, filters or keyboard behaviour.", tags: ["grid", "parity"] },
+    { ic: "ðŸŽ¯", t: "Target-verified paste", d: "Enter pastes only after the foreground window is proven to be the intended target; otherwise it copies.", tags: ["SendInput", "safety"] },
+    { ic: "ðŸ–±ï¸", t: "Opt-in double-click paste", d: "Off by default. When on, every double-click opens the active-app chooser before pasting.", tags: ["opt-in", "picker"] },
+    { ic: "ðŸ”€", t: "Batch merge and sequential paste", d: "Merge checked cards as Plain, .env, JSON, CSV or Rich â€” or paste them one after another.", tags: ["multi-select", "merge"] },
+    { ic: "ðŸ–‡ï¸", t: "Mixed text + image merge", d: "Optionally carry images inside CF_HTML/RTF, with a warning and image deselect when the target cannot accept them.", tags: ["opt-in", "rich"] },
+    { ic: "âœ‹", t: "Armed OLE drag and drop", d: "Drag-out requires an explicit arm and disarms on blur. Never steals clicks, checkboxes or double-click.", tags: ["drag", "armed"] },
+    { ic: "ðŸ·ï¸", t: "Tags, aliases and autocomplete", d: "Multiple aliases and tags per entry, with frequency-ranked suggestions that only apply when accepted.", tags: ["tags", "aliases"] },
+    { ic: "ðŸªŸ", t: "Persistent custom context menu", d: "Hide, show and reorder right-click commands; Customize always stays available so you cannot lock yourself out.", tags: ["menu", "persisted"] },
+    { ic: "ðŸ–¼ï¸", t: "Aspect-true image thumbnails", d: "Lazily decoded, letterboxed thumbnails with an LRU bound so long image histories stay light.", tags: ["thumbnail", "LRU"] },
+    { ic: "âœï¸", t: "Transform preview with undo", d: "UPPER, lower, Title, Trim, Base64, URL, JSON, slug, camel, snake â€” staged as a preview with Save, Cancel and Undo.", tags: ["preview", "undo"] },
+    { ic: "ðŸ”", t: "DPAPI encryption and privacy filters", d: "Content and image bytes encrypted at rest; password-manager clips ignored; sensitive clips masked and auto-expired.", tags: ["DPAPI", "privacy"] },
+    { ic: "ðŸ—ï¸", t: "Encrypted API key vault", d: "AES-256-GCM store behind a DPAPI-wrapped key, optional master password and timed auto-lock.", tags: ["vault", "AES-GCM"] },
+    { ic: "ðŸ’¾", t: "History limits, backup and restore", d: "Bound history by count and age; export or import JSON/CSV, optionally DPAPI-encrypted, with CSV injection defence.", tags: ["limits", "export"] },
+    { ic: "âŒ¨ï¸", t: "Tray, hotkey and startup", d: "Starts quietly in the tray, toggles with one global shortcut captured by pressing keys, not typing them.", tags: ["hotkey", "tray"] },
+    { ic: "ðŸŽ¨", t: "Switchable app-wide styling", d: "Fluent, Acrylic, Classic or Native applied to every app-owned window, menu and dialog â€” with a native fallback.", tags: ["theme", "native"] },
+    { ic: "â™¿", t: "Keyboard and contrast accessibility", d: "Every primary action reachable by keyboard, WCAG AA contrast, visible focus, per-monitor V2 DPI.", tags: ["WCAG AA", "DPI"] },
+    { ic: "ðŸ—ï¸", t: "Reproducible build and versioning", d: "One version source, generated checksums, and a setup installer whose payload is proven byte-identical to the portable.", tags: ["version", "checksums"] }
   ];
 
   var grid = document.getElementById("featureGrid");
@@ -609,7 +609,7 @@
 
   var traps = [
     { t: "Never set UserPaint on ModernCardList", d: "It suppresses the native WM_DRAWITEM path and renders a blank list until hover. This bug already shipped once.", rule: "No SetStyle(ControlStyles.UserPaint, true) on ModernCardList." },
-    { t: "INPUT must be 40 bytes on x64", d: "A 32-byte union makes SendInput silently return 0 — paste appears to succeed but nothing happens.", rule: "Keep InteropLayoutTests passing; do not resize the union." },
+    { t: "INPUT must be 40 bytes on x64", d: "A 32-byte union makes SendInput silently return 0 â€” paste appears to succeed but nothing happens.", rule: "Keep InteropLayoutTests passing; do not resize the union." },
     { t: "Self-capture loop", d: "Writing the clipboard fires WM_CLIPBOARDUPDATE, which can recapture the entry and loop.", rule: "Suppress around every clipboard write and clear the flag on failure too." },
     { t: "Double-click activation timing", d: "Activating on mouse-down hides the window mid-gesture and can paste twice.", rule: "Detect in the card control, activate on the second mouse-up." },
     { t: "Selection must survive rebuild", d: "Storing selection on item objects loses it when the list rebuilds; the batch bar silently empties.", rule: "Keep selected IDs outside the list and prune to existing rows." },

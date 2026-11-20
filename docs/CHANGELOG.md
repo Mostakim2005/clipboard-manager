@@ -1,4 +1,12 @@
-[Product Intent](PRODUCT.md) · [Architecture](ARCHITECTURE.md) · [Decisions & Traps](DECISIONS_AND_TRAPS.md) · [Visual Guide](VISUAL_GUIDE.html) · [AI Bootstrap](../AI_BOOTSTRAP.md)
+﻿# 3.2.0 (2026-11-20)
+
+- **Search & Paste UX (Phase 5):** Added multi-token search, Alt+1..9 quick-paste shortcuts, lazy ThumbnailCache, and comprehensive audit regression tests.
+- **Packaging & CI Hardening (Phase 4):** Hardened installer packaging, CI workflow permissions/version guard, and PowerShell release scripts.
+- **Data Integrity & Parity (Phase 3):** Verified SQLite integrity, fixed RichMerge/PasteService edge cases, resolved Search/Transform bugs, synced documentation, and removed dead code.
+- **UI & Stability (Phase 2):** Resolved Acrylic effect crash, fixed GridCardList scroll/menu accessors, plugged GDI+ handle leaks, and refined HotkeyCaptureBox.
+- **Security & Privacy (Phase 1):** Addressed P0 security audit findings, secured API vault storage, added privacy filters, and fixed uninstaller cleanup issues.
+
+[Product Intent](PRODUCT.md) Â· [Architecture](ARCHITECTURE.md) Â· [Decisions & Traps](DECISIONS_AND_TRAPS.md) Â· [Visual Guide](VISUAL_GUIDE.html) Â· [AI Bootstrap](../AI_BOOTSTRAP.md)
 
 # Changelog
 
@@ -10,7 +18,7 @@ corrections.
 
 ---
 
-## 3.1.1 — Dual cloud release (Portable + Setup) & modular docs
+## 3.1.1 â€” Dual cloud release (Portable + Setup) & modular docs
 
 ### Cloud CI/CD and release packaging
 - **GitHub Actions dual build.** Updated `.github/workflows/build.yml` to automatically build, package, verify, and attach both the Portable (`ClipboardApp-v3.1.1-Portable.exe`) and Setup Installer (`ClipboardApp-v3.1.1-Setup.exe`) on release tags.
@@ -23,13 +31,13 @@ corrections.
 
 ---
 
-## License change — 2026-11-06
+## License change â€” 2026-11-06
 
 - **Project license is now PolyForm Noncommercial 1.0.0** (was MIT). Personal, hobby,
   research, educational, charity, and government use remain free. Commercial use now
   requires a separate license from the author.
-- **`THIRD-PARTY-NOTICES.md` records every third-party component** — name, resolved
-  version, and original license — while `LICENSE` stays purely the PolyForm text.
+- **`THIRD-PARTY-NOTICES.md` records every third-party component** â€” name, resolved
+  version, and original license â€” while `LICENSE` stays purely the PolyForm text.
   Components that ship inside the executable and test-only packages are both listed.
 - **No copyleft dependencies.** Every third-party component is MIT, Apache-2.0, or public
   domain, so the noncommercial terms on ClipboardApp's own code do not conflict with them.
@@ -37,15 +45,15 @@ corrections.
 
 ---
 
-## 3.1.0 — Versioning foundation & UI batch 1
+## 3.1.0 â€” Versioning foundation & UI batch 1
 
 ### Versioning, build and release integrity
 
 - **Single version source of truth.** The version now lives only in `Directory.Build.props` and
   flows into the app, setup installer and tests. Removed hard-coded `3.0.0` values from three
   project files and the `2.5.0` default from the packaging script.
-- **`tools/bump-version.ps1`** — one command bumps `major` / `minor` / `patch`, resets lower
-  components (1.4.2 + minor → 1.5.0), and keeps the version strings in `README.md`,
+- **`tools/bump-version.ps1`** â€” one command bumps `major` / `minor` / `patch`, resets lower
+  components (1.4.2 + minor â†’ 1.5.0), and keeps the version strings in `README.md`,
   `docs/VISUAL_GUIDE.html` and `docs/HANDOFF.md` in sync.
 - **Release pipeline hardened** (`tools/build_releases.ps1`): reads the version from the props
   file, enforces a minimum test count so a shrunken suite cannot ship, writes a
@@ -70,7 +78,7 @@ corrections.
 - **Hotkey toggles the window.** The global shortcut now alternates: first press shows and
   focuses (search box focused), second press returns the window to the tray without quitting.
   The window reappears at the last position you used it, if that position is still on screen.
-- **Shortcut capture replaces manual typing.** Settings → General no longer asks you to type
+- **Shortcut capture replaces manual typing.** Settings â†’ General no longer asks you to type
   `Ctrl+F1`. Click **Set**, press the combination, and it registers immediately; modifier keys
   update a live preview, a bare key is rejected, an already-taken combination is reported before
   you commit, and `Esc` cancels. A **Reset** button restores the default.
@@ -86,19 +94,19 @@ corrections.
 - **New Grid view.** A footer button switches live between **List + Preview** (the existing card
   list with inspector) and **Grid** (tiles across the full width). Image tiles are about twice the
   height of text tiles so the thumbnail is visible; column count is auto-fit or configurable from
-  1 to 10 in Settings → Appearance. The choice is remembered, and the button is labelled with the
+  1 to 10 in Settings â†’ Appearance. The choice is remembered, and the button is labelled with the
   mode it switches *to*. Selection, filtering, grouping, drag arming, right-click menu and
   keyboard commands all behave identically in both views.
 - **Text transforms are previews, not silent edits.** UPPER, lower, slug, camel, snake and
   Prettify JSON previously rewrote the stored clip immediately with no way back. They now stage
-  the result: the header shows **PREVIEW — changes not saved**, and you get **Save Changes**
+  the result: the header shows **PREVIEW â€” changes not saved**, and you get **Save Changes**
   (commits once, from the repository), **Cancel** (discards), and **Undo** (walks back through
   several applied transforms, up to 20 steps). Switching entries discards an unsaved preview.
 
 ### Verification
 
-- `dotnet build` — **0 warnings, 0 errors**.
-- `dotnet test` — **116/116 passing**, including new tests for hotkey parsing round-trips,
+- `dotnet build` â€” **0 warnings, 0 errors**.
+- `dotnet test` â€” **116/116 passing**, including new tests for hotkey parsing round-trips,
   version/assembly consistency, required settings defaults, the start-hidden/toggle-to-tray
   contract, grid/list parity, grid column clamping, and aspect-preserving thumbnails.
 
@@ -106,11 +114,11 @@ corrections.
 
 ---
 
-## Documentation restructure — 2026-11-06
+## Documentation restructure â€” 2026-11-06
 
 - **Universal agent protocol adopted.** `AGENTS.md` is now the shared multi-agent operating
   directive (triage paths, grep-first docs, GitHub-first archiving, cloud builds).
-- **`docs/INDEX.md` removed.** The numbered "Level 0–3" index is gone in favour of four
+- **`docs/INDEX.md` removed.** The numbered "Level 0â€“3" index is gone in favour of four
   self-describing documents plus subsystem dossiers. No line-number anchors remain.
 - **New docs set.** `PRODUCT.md` (user intent and feature checklist), `ARCHITECTURE.md`
   (diagrams, flows, extension recipes), `DECISIONS_AND_TRAPS.md` (rejected paths, decision
@@ -122,7 +130,7 @@ corrections.
 
 ---
 
-## 3.0.0 — API vault, grouping and security baseline
+## 3.0.0 â€” API vault, grouping and security baseline
 
 Baseline release: encrypted API-key vault (AES-256-GCM with a DPAPI-wrapped key and optional
 PBKDF2 master password), group-header selection checkboxes, sensitive-content masking with
