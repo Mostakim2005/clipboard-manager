@@ -282,7 +282,7 @@ namespace ClipboardApp.WinForms
                 _snapshot.RemoveAll(e => e.Id == id);
             }
 
-            Accessor.ClearCheckedCards();
+            Accessor.UncheckCards(ids);
             RefreshAppFilterOptions();
             RebuildList();
             ShowTransientStatus($"{ids.Count} filtered item{(ids.Count == 1 ? "" : "s")} deleted.");

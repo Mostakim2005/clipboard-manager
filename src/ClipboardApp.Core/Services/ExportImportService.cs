@@ -41,10 +41,12 @@ namespace ClipboardApp.Core.Services
             sb.AppendLine("Id,CreatedAt,Format,Pinned,Alias,SourceApp,Content");
             foreach (var e in entries)
             {
+                var escapedId = EscapeCsv(e.Id);
+                var escapedFormat = EscapeCsv(e.Format);
                 var escapedContent = EscapeCsv(e.Content);
                 var escapedAlias = EscapeCsv(e.Alias);
                 var escapedApp = EscapeCsv(e.SourceApp);
-                sb.AppendLine($"{e.Id},{e.CreatedAt:O},{e.Format},{e.Pinned},{escapedAlias},{escapedApp},{escapedContent}");
+                sb.AppendLine($"{escapedId},{e.CreatedAt:O},{escapedFormat},{e.Pinned},{escapedAlias},{escapedApp},{escapedContent}");
             }
             return sb.ToString();
         }

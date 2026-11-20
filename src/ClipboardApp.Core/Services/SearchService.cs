@@ -74,7 +74,8 @@ namespace ClipboardApp.Core.Services
                 return true;
             if (!string.IsNullOrEmpty(e.SourceApp) && e.SourceApp.Contains(q, StringComparison.OrdinalIgnoreCase))
                 return true;
-            if (e.Tags != null && e.Tags.Any(t => t.Contains(q.TrimStart('#'), StringComparison.OrdinalIgnoreCase)))
+            var tagQuery = q.TrimStart('#');
+            if (!string.IsNullOrEmpty(tagQuery) && e.Tags != null && e.Tags.Any(t => t.Contains(tagQuery, StringComparison.OrdinalIgnoreCase)))
                 return true;
             return false;
         }

@@ -73,13 +73,17 @@ namespace ClipboardApp.Core.Storage
                         Name TEXT
                     );
                     CREATE TABLE IF NOT EXISTS EntryGroups (
-                        EntryId TEXT, GroupId TEXT
+                        EntryId TEXT NOT NULL,
+                        GroupId TEXT NOT NULL,
+                        PRIMARY KEY (EntryId, GroupId)
                     );
                     CREATE TABLE IF NOT EXISTS Tags (
                         Id TEXT PRIMARY KEY, Name TEXT, Color TEXT
                     );
                     CREATE TABLE IF NOT EXISTS EntryTags (
-                        EntryId TEXT, TagId TEXT
+                        EntryId TEXT NOT NULL,
+                        TagId TEXT NOT NULL,
+                        PRIMARY KEY (EntryId, TagId)
                     );
                     CREATE INDEX IF NOT EXISTS idx_entries_pinned_created ON Entries(Pinned DESC, CreatedAt DESC);
                     CREATE INDEX IF NOT EXISTS idx_entries_created ON Entries(CreatedAt DESC);
@@ -308,8 +312,9 @@ namespace ClipboardApp.Core.Storage
         {
             var results = new List<ClipboardEntry>();
             using var cmd = _connection.CreateCommand();
-            cmd.CommandText = "SELECT Id, Content, Alias, Pinned, NULL, CreatedAt, Format, SourceApp, IsSensitive, ExpiresAt, Tags, (ImageData IS NOT NULL) AS HasImage, ContentHash, CopyCount, Seq, LastCopiedAt FROM Entries WHERE Alias LIKE @q ORDER BY Pinned DESC, Seq DESC";
-            cmd.Parameters.AddWithValue("@q", $"%{alias}%");
+            cmd.CommandText = "SELECT Id, Content, Alias, Pinned, NULL, CreatedAt, Format, SourceApp, IsSensitive, ExpiresAt, Tags, (ImageData IS NOT NULL) AS HasImage, ContentHash, CopyCount, Seq, LastCopiedAt FROM Entries WHERE Alias LIKE @q ESCAPE '\\' ORDER BY Pinned DESC, Seq DESC";
+            var escapedAlias = (alias ?? string.Empty).Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
+            cmd.Parameters.AddWithValue("@q", $"%{escapedAlias}%");
             using var reader = cmd.ExecuteReader();
             while (reader.Read())
             {
@@ -322,8 +327,9 @@ namespace ClipboardApp.Core.Storage
         {
             var results = new List<ClipboardEntry>();
             using var cmd = _connection.CreateCommand();
-            cmd.CommandText = "SELECT Id, Content, Alias, Pinned, NULL, CreatedAt, Format, SourceApp, IsSensitive, ExpiresAt, Tags, (ImageData IS NOT NULL) AS HasImage, ContentHash, CopyCount, Seq, LastCopiedAt FROM Entries WHERE Tags LIKE @tag ORDER BY Pinned DESC, Seq DESC";
-            cmd.Parameters.AddWithValue("@tag", $"%{tag}%");
+            cmd.CommandText = "SELECT Id, Content, Alias, Pinned, NULL, CreatedAt, Format, SourceApp, IsSensitive, ExpiresAt, Tags, (ImageData IS NOT NULL) AS HasImage, ContentHash, CopyCount, Seq, LastCopiedAt FROM Entries WHERE (',' || REPLACE(COALESCE(Tags, ''), ', ', ',') || ',') LIKE @tag ESCAPE '\\' ORDER BY Pinned DESC, Seq DESC";
+            var escapedTag = (tag ?? string.Empty).Trim().Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
+            cmd.Parameters.AddWithValue("@tag", $"%,{escapedTag},%");
             using var reader = cmd.ExecuteReader();
             while (reader.Read())
             {
@@ -374,21 +380,26 @@ namespace ClipboardApp.Core.Storage
 
         public void DeleteEntry(string id)
         {
+            if (string.IsNullOrEmpty(id)) return;
+            using var tx = _connection.BeginTransaction();
             using var cmd = _connection.CreateCommand();
-            cmd.CommandText = "DELETE FROM Entries WHERE Id=@id";
+            cmd.Transaction = tx;
+            cmd.CommandText = "DELETE FROM EntryGroups WHERE EntryId=@id; DELETE FROM EntryTags WHERE EntryId=@id; DELETE FROM Entries WHERE Id=@id;";
             cmd.Parameters.AddWithValue("@id", id);
             cmd.ExecuteNonQuery();
+            tx.Commit();
         }
 
         public void DeleteEntries(List<string> ids)
         {
-            if (ids.Count == 0) return;
+            if (ids == null || ids.Count == 0) return;
             using var tx = _connection.BeginTransaction();
             foreach (var id in ids)
             {
+                if (string.IsNullOrEmpty(id)) continue;
                 using var cmd = _connection.CreateCommand();
-                cmd.Transaction = tx; // Fix transaction bug
-                cmd.CommandText = "DELETE FROM Entries WHERE Id=@id";
+                cmd.Transaction = tx;
+                cmd.CommandText = "DELETE FROM EntryGroups WHERE EntryId=@id; DELETE FROM EntryTags WHERE EntryId=@id; DELETE FROM Entries WHERE Id=@id;";
                 cmd.Parameters.AddWithValue("@id", id);
                 cmd.ExecuteNonQuery();
             }
@@ -397,9 +408,14 @@ namespace ClipboardApp.Core.Storage
 
         public void ClearAll(bool includePinned = false)
         {
+            using var tx = _connection.BeginTransaction();
             using var cmd = _connection.CreateCommand();
-            cmd.CommandText = includePinned ? "DELETE FROM Entries" : "DELETE FROM Entries WHERE Pinned = 0";
+            cmd.Transaction = tx;
+            cmd.CommandText = includePinned
+                ? "DELETE FROM EntryGroups; DELETE FROM EntryTags; DELETE FROM Entries;"
+                : "DELETE FROM EntryGroups WHERE EntryId IN (SELECT Id FROM Entries WHERE Pinned = 0); DELETE FROM EntryTags WHERE EntryId IN (SELECT Id FROM Entries WHERE Pinned = 0); DELETE FROM Entries WHERE Pinned = 0;";
             cmd.ExecuteNonQuery();
+            tx.Commit();
         }
 
         public void PinEntry(string id)

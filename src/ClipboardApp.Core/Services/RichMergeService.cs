@@ -27,9 +27,10 @@ namespace ClipboardApp.Core.Services
 
         public bool IncludesImages => IncludedImageCount > 0;
         public bool HasContent =>
+            IncludedImageCount > 0 ||
+            TextEntryCount > 0 ||
             !string.IsNullOrEmpty(PlainText) ||
-            !string.IsNullOrEmpty(HtmlFragment) ||
-            !string.IsNullOrEmpty(Rtf);
+            !string.IsNullOrEmpty(HtmlFragment);
     }
 
     public static class RichMergeService
@@ -153,7 +154,8 @@ namespace ClipboardApp.Core.Services
                         }
                         else if (c > 127)
                         {
-                            sb.Append("\\u").Append((int)c).Append('?');
+                            // RTF spec requires signed 16-bit values for code units > 32767 (CJK, emoji surrogates).
+                            sb.Append("\\u").Append(unchecked((short)c)).Append('?');
                         }
                         else
                         {
@@ -226,7 +228,8 @@ namespace ClipboardApp.Core.Services
             }
             catch
             {
-                return bytes;
+                // Corrupt or unreadable image bytes must be skipped rather than embedded.
+                return Array.Empty<byte>();
             }
         }
 

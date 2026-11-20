@@ -67,7 +67,7 @@ namespace ClipboardApp.WinForms
         // History snapshot behavior
         public bool LiveRefresh { get; set; } = true;
         public string BatchSeparator { get; set; } = "DoubleNewline"; // DoubleNewline, SingleNewline, CommaSpace
-        public bool SequentialBatchPaste { get; set; } = true;
+        public bool SequentialBatchPaste { get; set; } = false;
 
         // Multi-select behavior
         public bool ClearSelectionAfterPaste { get; set; } = false;

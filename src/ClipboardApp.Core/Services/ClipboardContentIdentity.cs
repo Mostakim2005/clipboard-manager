@@ -16,9 +16,17 @@ namespace ClipboardApp.Core.Services
         {
             if (entry == null) throw new ArgumentNullException(nameof(entry));
 
-            if ((entry.Format == "image" || entry.HasImage) && entry.ImageData is { Length: > 0 })
+            if (entry.Format == "image" || entry.HasImage)
             {
-                return "img:" + HashBytes(entry.ImageData);
+                if (entry.ImageData is { Length: > 0 })
+                {
+                    return "img:" + HashBytes(entry.ImageData);
+                }
+                if (!string.IsNullOrEmpty(entry.ContentHash))
+                {
+                    return entry.ContentHash;
+                }
+                return "img:" + HashText(entry.Id ?? string.Empty);
             }
 
             var normalized = Normalize(entry.Content ?? string.Empty);

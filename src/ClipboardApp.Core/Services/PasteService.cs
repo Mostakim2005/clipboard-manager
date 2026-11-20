@@ -354,12 +354,13 @@ namespace ClipboardApp.Core.Services
             return SetClipboardWithRetry(() =>
             {
                 using var ms = new MemoryStream(imageBytes);
-                using var bmp = new Bitmap(ms);
+                using var decoded = new Bitmap(ms);
+                using var bmp = new Bitmap(decoded);
                 using var png = new MemoryStream(imageBytes);
                 var data = new DataObject();
-                data.SetData(DataFormats.Bitmap, true, new Bitmap(bmp));
+                data.SetData(DataFormats.Bitmap, true, bmp);
                 data.SetData("PNG", false, png);
-                Clipboard.SetDataObject(data, copy: true, retryTimes: 5, retryDelay: 35);
+                Clipboard.SetDataObject(data, copy: true, retryTimes: 2, retryDelay: 25);
             });
         }
 
@@ -456,6 +457,11 @@ namespace ClipboardApp.Core.Services
 
         internal static string BuildCfHtml(string fragment)
         {
+            if (fragment.StartsWith("Version:", StringComparison.OrdinalIgnoreCase) &&
+                fragment.Contains("StartHTML:", StringComparison.OrdinalIgnoreCase))
+            {
+                return fragment;
+            }
             string html = "<html><body><!--StartFragment-->" + fragment + "<!--EndFragment--></body></html>";
             const string placeholders = "Version:0.9\r\nStartHTML:{0:D10}\r\nEndHTML:{1:D10}\r\nStartFragment:{2:D10}\r\nEndFragment:{3:D10}\r\n";
 
@@ -478,17 +484,24 @@ namespace ClipboardApp.Core.Services
         public static string HtmlToPlainText(string html)
         {
             if (string.IsNullOrEmpty(html)) return string.Empty;
-            var withoutTags = Regex.Replace(html, "<[^>]+>", " ");
+            var cleaned = Regex.Replace(html, @"<(script|style)\b[^>]*>[\s\S]*?</\1>", " ", RegexOptions.IgnoreCase);
+            cleaned = Regex.Replace(cleaned, @"<!--[\s\S]*?-->", string.Empty);
+            cleaned = Regex.Replace(cleaned, @"<br\s*/?>|</(p|div|li|tr|h[1-6])>", "\n", RegexOptions.IgnoreCase);
+            var withoutTags = Regex.Replace(cleaned, "<[^>]+>", " ");
             withoutTags = withoutTags.Replace("&nbsp;", " ");
             withoutTags = System.Net.WebUtility.HtmlDecode(withoutTags);
-            return Regex.Replace(withoutTags, @"[ \t]{2,}", " ").Trim();
+            withoutTags = Regex.Replace(withoutTags, @"[ \t]{2,}", " ");
+            withoutTags = Regex.Replace(withoutTags, @"\n[ \t]+", "\n");
+            return withoutTags.Trim();
         }
 
         public static string RtfToPlainText(string rtf)
         {
             if (string.IsNullOrEmpty(rtf)) return string.Empty;
 
-            var text = Regex.Replace(rtf, @"\\u(-?\d+)\??", m =>
+            // Strip ignorable header groups (fonttbl, colortbl, stylesheet, info, destination \*).
+            var text = Regex.Replace(rtf, @"\{\\(?:\*|fonttbl|colortbl|stylesheet|info|pict)[^{}]*(?:\{[^{}]*\}[^{}]*)*\}", string.Empty);
+            text = Regex.Replace(text, @"\\u(-?\d+)\??", m =>
             {
                 if (int.TryParse(m.Groups[1].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int code))
                 {
@@ -497,10 +510,13 @@ namespace ClipboardApp.Core.Services
                 }
                 return string.Empty;
             });
-            text = Regex.Replace(text, @"\\par[d]?\b", "\n");
+            // Match \par (paragraph break) without matching \pard (paragraph formatting reset).
+            text = Regex.Replace(text, @"\\par(?![a-zA-Z]) ?", "\n");
             text = text.Replace("\\tab", "\t");
+            text = text.Replace("\\{", "\uE001").Replace("\\}", "\uE002");
             text = Regex.Replace(text, @"\\[a-zA-Z]+-?\d* ?", string.Empty);
             text = text.Replace("{", string.Empty).Replace("}", string.Empty);
+            text = text.Replace("\uE001", "{").Replace("\uE002", "}");
             text = text.Replace("\r", string.Empty);
             return text.Trim();
         }

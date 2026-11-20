@@ -4,6 +4,7 @@
     <AssemblyName>ClipboardApp</AssemblyName>
     <TargetFramework>net8.0-windows</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <!-- Version, AssemblyVersion, FileVersion come from /Directory.Build.props. -->
