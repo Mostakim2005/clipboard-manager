@@ -33,7 +33,6 @@ namespace ClipboardApp.WinForms
         public bool Register(string hotkey, Form messageTarget, out string errorMessage)
         {
             errorMessage = string.Empty;
-            Unregister();
 
             if (!HotkeyParser.TryParse(hotkey, out int mods, out int vk))
             {
@@ -48,9 +47,26 @@ namespace ClipboardApp.WinForms
                 _ = messageTarget.Handle; // Ensure handle is created
             }
 
+            string previousHotkey = RegisteredHotkey;
+            IntPtr previousHandle = _targetHandle;
+            bool wasRegistered = _isRegistered;
+
+            Unregister();
+
             _isRegistered = NativeMethods.RegisterHotKey(messageTarget.Handle, _id, mods | HotkeyParser.ModNoRepeat, vk);
             if (!_isRegistered)
             {
+                // Restore previous working hotkey if the new registration failed.
+                if (wasRegistered && previousHandle != IntPtr.Zero &&
+                    HotkeyParser.TryParse(previousHotkey, out int prevMods, out int prevVk))
+                {
+                    if (NativeMethods.RegisterHotKey(previousHandle, _id, prevMods | HotkeyParser.ModNoRepeat, prevVk))
+                    {
+                        _isRegistered = true;
+                        _targetHandle = previousHandle;
+                        RegisteredHotkey = previousHotkey;
+                    }
+                }
                 errorMessage = $"Failed to register '{hotkey}'. It may already be in use by another application or Windows.";
                 return false;
             }

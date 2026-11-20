@@ -426,11 +426,18 @@ namespace ClipboardApp.WinForms.Controls
                 : (_isDark ? ModernPalette.DarkWindowBg : ModernPalette.LightWindowBg);
             using (var bg = new SolidBrush(windowBg)) g.FillRectangle(bg, ClientRectangle);
 
-            g.TranslateTransform(-AutoScrollPosition.X, -AutoScrollPosition.Y);
+            // AutoScrollPosition is negative when scrolled down; positive offset shifts content up into view.
+            g.TranslateTransform(AutoScrollPosition.X, AutoScrollPosition.Y);
+            var visibleContentRect = new Rectangle(
+                -AutoScrollPosition.X,
+                -AutoScrollPosition.Y,
+                ClientRectangle.Width,
+                ClientRectangle.Height);
             try
             {
                 foreach (var tile in _layout)
                 {
+                    if (!tile.Bounds.IntersectsWith(visibleContentRect)) continue;
                     if (tile.IsHeader)
                     {
                         if (tile.Item is CardGroupHeader header) DrawHeader(g, tile.Bounds, header, windowBg);
@@ -525,10 +532,11 @@ namespace ClipboardApp.WinForms.Controls
                 badgeWidth += 4 + DrawBadge(g, "ðŸ”’", contentX + badgeWidth + 4, top, sensitive: true);
             }
 
-            // Quick-paste badge (top-right)
+            // Quick-paste badge & pin icon (top-right; show both when a top-9 entry is pinned)
+            int rightCursor = rect.Right - 26;
             if (tile.EntryRank < 9)
             {
-                var shortcutRect = new Rectangle(rect.Right - 26, top + 1, 18, 16);
+                var shortcutRect = new Rectangle(rightCursor, top + 1, 18, 16);
                 using (var sPath = ModernPalette.CreateRoundedPath(shortcutRect, 3))
                 using (var sBrush = new SolidBrush(_isDark ? Color.FromArgb(51, 65, 85) : Color.FromArgb(226, 232, 240)))
                 {
@@ -537,10 +545,11 @@ namespace ClipboardApp.WinForms.Controls
                 TextRenderer.DrawText(g, (tile.EntryRank + 1).ToString(), _shortcutFont, shortcutRect,
                     _isDark ? Color.FromArgb(226, 232, 240) : Color.FromArgb(51, 65, 85),
                     TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+                rightCursor -= 22;
             }
-            else if (entry.Pinned)
+            if (entry.Pinned)
             {
-                TextRenderer.DrawText(g, "ðŸ“Œ", _badgeFont, new Rectangle(rect.Right - 26, top, 18, 16), Color.DodgerBlue,
+                TextRenderer.DrawText(g, "PIN", _shortcutFont, new Rectangle(rightCursor - 6, top + 1, 24, 16), Color.DodgerBlue,
                     TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
             }
 
@@ -689,7 +698,7 @@ namespace ClipboardApp.WinForms.Controls
         private Rectangle CheckboxRect(int index)
         {
             var bounds = _layout[index].Bounds;
-            return new Rectangle(bounds.X + TilePadding, bounds.Y + TilePadding + 1, CheckboxSize, CheckboxSize);
+            return new Rectangle(bounds.X + TilePadding, bounds.Y + TilePadding - 1, CheckboxSize, CheckboxSize);
         }
 
         private int IndexOfEntry(string id)
@@ -762,7 +771,8 @@ namespace ClipboardApp.WinForms.Controls
 
             int itemIndex = IndexOfEntry(entry.Id);
 
-            if (_showCheckboxes && CheckboxRect(index).Contains(e.Location))
+            var contentPoint = new Point(e.X - AutoScrollPosition.X, e.Y - AutoScrollPosition.Y);
+            if (_showCheckboxes && CheckboxRect(index).Contains(contentPoint))
             {
                 _lastClickEntryId = null;
                 ToggleCardChecked(entry.Id);
@@ -975,7 +985,12 @@ namespace ClipboardApp.WinForms.Controls
 
         // ------------------------------------------------------------ keyboard
 
-        protected override bool IsInputKey(Keys keyData) => true;
+        protected override bool IsInputKey(Keys keyData)
+        {
+            var key = keyData & Keys.KeyCode;
+            return key is Keys.Up or Keys.Down or Keys.Left or Keys.Right
+                or Keys.Home or Keys.End or Keys.PageUp or Keys.PageDown or Keys.Space;
+        }
 
         protected override void OnKeyDown(KeyEventArgs e)
         {

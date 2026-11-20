@@ -141,6 +141,10 @@ namespace ClipboardApp.WinForms.Controls
 
             _currentEntry = entry;
             _currentImageData = imageData;
+            foreach (Control ctrl in _actionBar.Controls)
+            {
+                ctrl.Dispose();
+            }
             _actionBar.Controls.Clear();
 
             if (entry == null)
@@ -158,13 +162,14 @@ namespace ClipboardApp.WinForms.Controls
             var relativeTime = ModernPalette.GetRelativeTime(entry.CreatedAt);
             _headerInfo.Text = $"{entry.Format.ToUpperInvariant()}  •  {entry.SourceApp}  •  {relativeTime}  •  {entry.CreatedAt:h:mm:ss tt}";
 
-            bool isColor = entry.Format == "text" && !string.IsNullOrEmpty(entry.Content) &&
-                           entry.Content.Trim().StartsWith("#") &&
-                           (entry.Content.Trim().Length == 7 || entry.Content.Trim().Length == 9);
+            var trimmedContent = entry.Content?.Trim() ?? string.Empty;
+            bool isColor = (entry.Format == "color" || entry.Format == "text") && !string.IsNullOrEmpty(trimmedContent) &&
+                           trimmedContent.StartsWith("#") &&
+                           (trimmedContent.Length == 4 || trimmedContent.Length == 7 || trimmedContent.Length == 9);
 
-            bool isLink = entry.Format == "text" && !string.IsNullOrEmpty(entry.Content) &&
-                          (entry.Content.Trim().StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
-                           entry.Content.Trim().StartsWith("https://", StringComparison.OrdinalIgnoreCase));
+            bool isLink = (entry.Format == "link" || entry.Format == "text") && !string.IsNullOrEmpty(trimmedContent) &&
+                          (trimmedContent.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+                           trimmedContent.StartsWith("https://", StringComparison.OrdinalIgnoreCase));
 
             if (entry.Format == "image" || entry.HasImage)
             {
@@ -386,15 +391,18 @@ namespace ClipboardApp.WinForms.Controls
             _colorPanel.Visible = false;
             _pictureBox.Visible = true;
 
+            var prevImg = _pictureBox.Image;
+            _pictureBox.Image = null;
+            prevImg?.Dispose();
+
             if (_currentImageData != null && _currentImageData.Length > 0)
             {
                 try
                 {
                     using var ms = new MemoryStream(_currentImageData);
-                    var old = _pictureBox.Image;
-                    var bmp = new Bitmap(ms);
+                    using var decoded = new Bitmap(ms);
+                    var bmp = new Bitmap(decoded);
                     _pictureBox.Image = bmp;
-                    old?.Dispose();
                     _headerInfo.Text += $"  •  {bmp.Width} × {bmp.Height} px  •  {_currentImageData.Length / 1024} KB";
                 }
                 catch

@@ -30,6 +30,7 @@ namespace ClipboardApp.WinForms.Controls
         private readonly PaintSurface _surface;
 
         private bool _capturing;
+        private bool _suppressNextSetClick;
         private int _pendingModifiers;
         private string _committedValue = HotkeyParser.DefaultHotkey;
         private bool _isDark;
@@ -90,7 +91,21 @@ namespace ClipboardApp.WinForms.Controls
                 TabStop = false
             };
             _setButton.FlatAppearance.BorderSize = 0;
-            _setButton.Click += (_, _) => BeginCapture();
+            _setButton.MouseDown += (_, _) =>
+            {
+                if (_capturing) _suppressNextSetClick = true;
+            };
+            _setButton.Click += (_, _) =>
+            {
+                if (_suppressNextSetClick)
+                {
+                    _suppressNextSetClick = false;
+                    CancelCapture();
+                    return;
+                }
+                if (_capturing) CancelCapture();
+                else BeginCapture();
+            };
 
             _clearButton = new Button
             {

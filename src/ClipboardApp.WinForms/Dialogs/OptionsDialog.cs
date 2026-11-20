@@ -448,7 +448,7 @@ namespace ClipboardApp.WinForms.Dialogs
             {
                 Minimum = 10,
                 Maximum = 10000,
-                Value = Settings.MaxHistoryCount,
+                Value = Math.Clamp(Settings.MaxHistoryCount, 10, 10000),
                 Dock = DockStyle.Fill,
                 BackColor = isDark ? ModernPalette.DarkCardBg : Color.White,
                 ForeColor = isDark ? Color.White : Color.Black
@@ -460,7 +460,7 @@ namespace ClipboardApp.WinForms.Dialogs
             {
                 Minimum = 0,
                 Maximum = 1440,
-                Value = Settings.AutoClearSensitiveMinutes,
+                Value = Math.Clamp(Settings.AutoClearSensitiveMinutes, 0, 1440),
                 Dock = DockStyle.Fill,
                 BackColor = isDark ? ModernPalette.DarkCardBg : Color.White,
                 ForeColor = isDark ? Color.White : Color.Black

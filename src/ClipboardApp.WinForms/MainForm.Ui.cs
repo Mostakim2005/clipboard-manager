@@ -233,9 +233,9 @@ namespace ClipboardApp.WinForms
                 Font = new Font("Segoe UI", 9f, FontStyle.Bold)
             };
 
-            var btnSelectAll = CreateBatchButton("Select All", () => _cardList.SelectAllCards());
-            var btnInvertSelect = CreateBatchButton("Invert", () => _cardList.InvertSelection());
-            var btnClearSelect = CreateBatchButton("Clear", () => _cardList.ClearCheckedCards());
+            var btnSelectAll = CreateBatchButton("Select All", () => Accessor.SelectAllCards());
+            var btnInvertSelect = CreateBatchButton("Invert", () => Accessor.InvertSelection());
+            var btnClearSelect = CreateBatchButton("Clear", () => Accessor.ClearCheckedCards());
             var btnBatchDelete = CreateBatchButton("Delete", BatchDeleteSelected, isDanger: true);
             var btnBatchTag = CreateBatchButton("Tags", () => AssignTagsToSelected());
             var btnBatchCopy = CreateBatchButton("Copy Merged", () => CopySelectedMerged());
@@ -433,6 +433,7 @@ namespace ClipboardApp.WinForms
             grid.CardClicked += (_, entry) => OnCardClicked(entry);
             grid.StartCardDragRequested += (_, entry) => StartOleDrag(entry);
             grid.DragSessionFinished += (_, _) => SetDragArmed(false);
+            grid.MouseDown += OnCardListMouseDown;
             grid.KeyDown += OnCardListKeyDown;
             return grid;
         }
@@ -513,7 +514,7 @@ namespace ClipboardApp.WinForms
 
         private void PasteCheckedEach()
         {
-            var targetIds = new System.Collections.Generic.HashSet<string>(_cardList.GetCheckedOrSelectedIds());
+            var targetIds = new System.Collections.Generic.HashSet<string>(Accessor.GetCheckedOrSelectedIds());
             var entries = new System.Collections.Generic.List<ClipboardEntry>();
             foreach (var item in _cardList.Items)
             {

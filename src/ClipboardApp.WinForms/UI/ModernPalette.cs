@@ -83,10 +83,10 @@ namespace ClipboardApp.WinForms.UI
             return dateTime.ToString("MMM d");
         }
 
-        // Acrylic / Glassmorphism Colors
-        public static readonly Color AcrylicCardBgDark = Color.FromArgb(200, 32, 32, 36);
+        // Acrylic / Glassmorphism Colors (opaque-composited card fills so WinForms controls never throw on alpha < 255)
+        public static readonly Color AcrylicCardBgDark = Color.FromArgb(255, 30, 30, 34);
         public static readonly Color AcrylicCardBorderDark = Color.FromArgb(70, 255, 255, 255);
-        public static readonly Color AcrylicCardBgLight = Color.FromArgb(220, 255, 255, 255);
+        public static readonly Color AcrylicCardBgLight = Color.FromArgb(255, 249, 250, 252);
         public static readonly Color AcrylicCardBorderLight = Color.FromArgb(140, 255, 255, 255);
 
         public static System.Drawing.Drawing2D.GraphicsPath CreateRoundedPath(Rectangle rect, int radius)

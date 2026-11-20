@@ -668,9 +668,11 @@ namespace ClipboardApp.WinForms
                 if (_settings.PlaySoundOnCapture) SystemSounds.Beep.Play();
                 if (_settings.ShowToastOnCapture)
                 {
-                    var preview = entry.Format == "image"
-                        ? "[Image]"
-                        : (entry.Content != null && entry.Content.Length > 40 ? entry.Content[..40] + "..." : entry.Content ?? "");
+                    var preview = entry.IsSensitive
+                        ? "[Sensitive item hidden]"
+                        : entry.Format == "image"
+                            ? "[Image]"
+                            : (entry.Content != null && entry.Content.Length > 40 ? entry.Content[..40] + "..." : entry.Content ?? "");
                     _tray.ShowNotification("Captured to Clipboard", preview);
                 }
             }

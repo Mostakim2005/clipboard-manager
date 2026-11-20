@@ -72,37 +72,41 @@ namespace ClipboardApp.Core.Services
 
         public static Bitmap? GetBitmapFromDib(Stream dibStream)
         {
-            using var reader = new BinaryReader(dibStream);
+            if (dibStream == null || dibStream.Length < 40 || dibStream.Length > 100 * 1024 * 1024) return null;
+
+            using var reader = new BinaryReader(dibStream, System.Text.Encoding.Default, leaveOpen: true);
             var dibBytes = reader.ReadBytes((int)dibStream.Length);
             if (dibBytes.Length < 40) return null;
 
             int headerSize = BitConverter.ToInt32(dibBytes, 0);
             short bitCount = BitConverter.ToInt16(dibBytes, 14);
-            int compression = dibBytes.Length >= 20 ? BitConverter.ToInt32(dibBytes, 16) : 0;
+            int compression = BitConverter.ToInt32(dibBytes, 16);
             int clrUsed = BitConverter.ToInt32(dibBytes, 32);
 
-            int maskSize = 0;
-            if (compression == 3 /* BI_BITFIELDS */ && headerSize == 40)
+            if (headerSize < 40 || headerSize > dibBytes.Length) return null;
+            if (bitCount < 0 || bitCount > 64 || clrUsed < 0 || clrUsed > 65536) return null;
+
+            int maskSize = (compression == 3 /* BI_BITFIELDS */ && headerSize == 40) ? 12 : 0;
+            long paletteEntries = clrUsed > 0 ? clrUsed : (bitCount <= 8 ? (1L << bitCount) : 0L);
+            long offBitsLong = 14L + headerSize + maskSize + paletteEntries * 4L;
+            if (offBitsLong < 54 || offBitsLong > 14L + dibBytes.Length) return null;
+
+            using var ms = new MemoryStream(14 + dibBytes.Length);
+            using (var writer = new BinaryWriter(ms, System.Text.Encoding.Default, leaveOpen: true))
             {
-                maskSize = 12;
+                writer.Write((byte)'B');
+                writer.Write((byte)'M');
+                writer.Write(14 + dibBytes.Length);
+                writer.Write((short)0);
+                writer.Write((short)0);
+                writer.Write((int)offBitsLong);
+                writer.Write(dibBytes);
             }
 
-            int paletteSize = (clrUsed > 0 ? clrUsed : (bitCount <= 8 ? (1 << bitCount) : 0)) * 4;
-            int offBits = 14 + headerSize + maskSize + paletteSize;
-
-            using var ms = new MemoryStream();
-            using var writer = new BinaryWriter(ms);
-            // Write 14-byte BITMAPFILEHEADER
-            writer.Write((byte)'B');
-            writer.Write((byte)'M');
-            writer.Write(14 + dibBytes.Length); // Total file size
-            writer.Write((short)0);             // Reserved 1
-            writer.Write((short)0);             // Reserved 2
-            writer.Write(offBits);              // Offset to pixel bits
-            writer.Write(dibBytes);
-
             ms.Position = 0;
-            return new Bitmap(ms);
+            // Clone into an independent Bitmap so disposing ms never triggers GDI+ ExternalException on Save().
+            using var temp = new Bitmap(ms);
+            return new Bitmap(temp);
         }
     }
 }

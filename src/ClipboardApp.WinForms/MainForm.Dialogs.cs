@@ -41,6 +41,10 @@ namespace ClipboardApp.WinForms
         {
             if (Accessor.SelectedItem is not ClipboardEntry entry) return;
 
+            foreach (ToolStripItem oldItem in _cardContextMenu.Items)
+            {
+                oldItem.Dispose();
+            }
             _cardContextMenu.Items.Clear();
 
             int checkedCount = Accessor.GetCheckedIds().Count;
@@ -142,7 +146,7 @@ namespace ClipboardApp.WinForms
             _cardContextMenu.Items.Add(new ToolStripMenuItem("âš™ï¸ Customize this menu...", null, (_, _) => CustomizeContextMenu()));
 
             UiStyler.ApplyMenu(_cardContextMenu, _settings);
-            _cardContextMenu.Show(_cardList, location);
+            _cardContextMenu.Show(Accessor.Control, location);
         }
 
         private void CustomizeContextMenu()
