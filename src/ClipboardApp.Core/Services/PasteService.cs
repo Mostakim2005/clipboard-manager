@@ -455,7 +455,7 @@ namespace ClipboardApp.Core.Services
 
         // ---------------------------------------------------------------- text/format helpers
 
-        internal static string BuildCfHtml(string fragment)
+        public static string BuildCfHtml(string fragment)
         {
             if (fragment.StartsWith("Version:", StringComparison.OrdinalIgnoreCase) &&
                 fragment.Contains("StartHTML:", StringComparison.OrdinalIgnoreCase))

@@ -39,6 +39,27 @@ namespace ClipboardApp.WinForms.Controls
         /// <paramref name="maxHeight"/> with the source aspect ratio preserved.
         /// Returns null when the bytes are not a decodable image.
         /// </summary>
+        public Bitmap? GetOrCreate(string entryId, Func<byte[]?> pngBytesFactory, int maxWidth, int maxHeight)
+        {
+            if (string.IsNullOrEmpty(entryId) || maxWidth < 8 || maxHeight < 8) return null;
+            var key = (entryId, maxWidth, maxHeight);
+            lock (_sync)
+            {
+                if (_disposed) return null;
+                if (_map.TryGetValue(key, out var cached))
+                {
+                    if (cached != _order.First)
+                    {
+                        _order.Remove(cached);
+                        _order.AddFirst(cached);
+                    }
+                    return cached.Value.Bitmap;
+                }
+            }
+            var pngBytes = pngBytesFactory();
+            return GetThumbnail(entryId, pngBytes, maxWidth, maxHeight);
+        }
+
         public Bitmap? GetThumbnail(string entryId, byte[]? pngBytes, int maxWidth, int maxHeight)
         {
             if (_disposed || pngBytes == null || pngBytes.Length == 0) return null;
@@ -78,7 +99,11 @@ namespace ClipboardApp.WinForms.Controls
                     return null;
                 }
 
-                if (_map.TryGetValue(key, out var existing)) return existing.Value.Bitmap;
+                if (_map.TryGetValue(key, out var existing))
+                {
+                    created.Dispose();
+                    return existing.Value.Bitmap;
+                }
 
                 var node = _order.AddFirst(new CacheItem { Id = entryId, Bitmap = created });
                 _map[key] = node;

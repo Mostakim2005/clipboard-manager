@@ -1135,17 +1135,17 @@ namespace ClipboardApp.WinForms
             }
             else if (e.KeyCode == Keys.F2)
             {
-                if (_cardList.SelectedItem is ClipboardEntry entry) EditEntry(entry);
+                if (Accessor.SelectedItem is ClipboardEntry entry) EditEntry(entry);
                 e.Handled = true;
             }
             else if (e.Control && e.KeyCode == Keys.P)
             {
-                if (_cardList.SelectedItem is ClipboardEntry entry) TogglePinEntry(entry);
+                if (Accessor.SelectedItem is ClipboardEntry entry) TogglePinEntry(entry);
                 e.Handled = true;
             }
             else if (e.Control && e.KeyCode == Keys.C)
             {
-                if (Accessor.GetCheckedIds().Count > 0 || _cardList.SelectedItem is ClipboardEntry)
+                if (Accessor.GetCheckedIds().Count > 0 || Accessor.SelectedItem is ClipboardEntry)
                 {
                     CopySelectedMerged();
                 }
@@ -1157,25 +1157,52 @@ namespace ClipboardApp.WinForms
                 ShowTransientStatus("History refreshed.");
                 e.Handled = true;
             }
-            else if (e.KeyCode >= Keys.D1 && e.KeyCode <= Keys.D9 && !e.Control && !e.Alt)
+            else if (((e.KeyCode >= Keys.D1 && e.KeyCode <= Keys.D9) || (e.KeyCode >= Keys.NumPad1 && e.KeyCode <= Keys.NumPad9)) && !e.Control && !e.Alt)
             {
-                int targetRank = e.KeyCode - Keys.D1;
-                int currentRank = 0;
-                for (int i = 0; i < _cardList.Items.Count; i++)
+                int targetRank = e.KeyCode >= Keys.NumPad1 ? e.KeyCode - Keys.NumPad1 : e.KeyCode - Keys.D1;
+                if (QuickPasteByRank(targetRank, plainTextOnly: e.Shift))
                 {
-                    if (_cardList.Items[i] is not ClipboardEntry entry) continue;
-                    if (currentRank == targetRank)
-                    {
-                        PasteEntry(entry, plainTextOnly: e.Shift);
-                        e.Handled = true;
-                        break;
-                    }
-                    currentRank++;
+                    e.Handled = true;
                 }
             }
         }
 
         // ------------------------------------------------------------------ history actions
+
+        private bool QuickPasteByRank(int targetRank, bool plainTextOnly)
+        {
+            int currentRank = 0;
+            for (int i = 0; i < _cardList.Items.Count; i++)
+            {
+                if (_cardList.Items[i] is not ClipboardEntry entry) continue;
+                if (currentRank == targetRank)
+                {
+                    PasteEntry(entry, plainTextOnly: plainTextOnly);
+                    return true;
+                }
+                currentRank++;
+            }
+            return false;
+        }
+
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        {
+            // QoL: Alt+1..9 (and Alt+Shift+1..9 for plain text) quick-paste directly from the search box.
+            if ((keyData & Keys.Alt) == Keys.Alt && (keyData & Keys.Control) == 0)
+            {
+                var keyCode = keyData & Keys.KeyCode;
+                if ((keyCode >= Keys.D1 && keyCode <= Keys.D9) || (keyCode >= Keys.NumPad1 && keyCode <= Keys.NumPad9))
+                {
+                    int rank = keyCode >= Keys.NumPad1 ? keyCode - Keys.NumPad1 : keyCode - Keys.D1;
+                    bool plain = (keyData & Keys.Shift) == Keys.Shift;
+                    if (QuickPasteByRank(rank, plainTextOnly: plain))
+                    {
+                        return true;
+                    }
+                }
+            }
+            return base.ProcessCmdKey(ref msg, keyData);
+        }
 
         private void DeleteSelected()
         {

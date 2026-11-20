@@ -11,6 +11,9 @@ namespace ClipboardApp.Core.Services
         private static readonly Regex s_urlRegex = new(@"^(https?://|www\.)[^\s/$.?#].[^\s]*$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static readonly Regex s_hexColorRegex = new(@"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$", RegexOptions.Compiled);
 
+        public static List<ClipboardEntry> Filter(IEnumerable<ClipboardEntry> entries, string query)
+            => new SearchService().FilterEntries(entries, query);
+
         public List<ClipboardEntry> FilterEntries(
             IEnumerable<ClipboardEntry> entries,
             string query,
@@ -68,14 +71,32 @@ namespace ClipboardApp.Core.Services
 
         private static bool MatchesQuery(ClipboardEntry e, string q)
         {
-            if (!string.IsNullOrEmpty(e.Alias) && e.Alias.Contains(q, StringComparison.OrdinalIgnoreCase))
+            var tokens = q.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+            if (tokens.Length == 0) return true;
+
+            foreach (var token in tokens)
+            {
+                if (!MatchesSingleToken(e, token)) return false;
+            }
+            return true;
+        }
+
+        private static bool MatchesSingleToken(ClipboardEntry e, string token)
+        {
+            if (token.StartsWith('#'))
+            {
+                var tagQuery = token.TrimStart('#');
+                return !string.IsNullOrEmpty(tagQuery) &&
+                       e.Tags != null &&
+                       e.Tags.Any(t => t.Contains(tagQuery, StringComparison.OrdinalIgnoreCase));
+            }
+            if (!string.IsNullOrEmpty(e.Alias) && e.Alias.Contains(token, StringComparison.OrdinalIgnoreCase))
                 return true;
-            if (!string.IsNullOrEmpty(e.Content) && e.Content.Contains(q, StringComparison.OrdinalIgnoreCase))
+            if (!string.IsNullOrEmpty(e.Content) && e.Content.Contains(token, StringComparison.OrdinalIgnoreCase))
                 return true;
-            if (!string.IsNullOrEmpty(e.SourceApp) && e.SourceApp.Contains(q, StringComparison.OrdinalIgnoreCase))
+            if (!string.IsNullOrEmpty(e.SourceApp) && e.SourceApp.Contains(token, StringComparison.OrdinalIgnoreCase))
                 return true;
-            var tagQuery = q.TrimStart('#');
-            if (!string.IsNullOrEmpty(tagQuery) && e.Tags != null && e.Tags.Any(t => t.Contains(tagQuery, StringComparison.OrdinalIgnoreCase)))
+            if (e.Tags != null && e.Tags.Any(t => t.Contains(token, StringComparison.OrdinalIgnoreCase)))
                 return true;
             return false;
         }
