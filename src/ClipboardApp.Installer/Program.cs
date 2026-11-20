@@ -60,7 +60,7 @@ internal static class Program
         {
             try
             {
-                string targetDir = SetupEngine.GetDefaultInstallDir();
+                string targetDir = SetupEngine.GetRegisteredInstallLocation() ?? SetupEngine.GetDefaultInstallDir();
                 SetupEngine.KillRunningProcesses();
                 await SetupEngine.ExtractPayloadAsync(targetDir);
                 string targetExe = Path.Combine(targetDir, "ClipboardApp.exe");
@@ -69,7 +69,11 @@ internal static class Program
                 SetupEngine.SetStartupRun(targetExe, true);
                 SetupEngine.RegisterUninstall(targetDir);
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"Silent install failed: {ex.Message}");
+                Environment.ExitCode = 1;
+            }
             return;
         }
 

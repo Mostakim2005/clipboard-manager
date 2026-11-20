@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using Microsoft.Win32;
 
 namespace ClipboardApp.Installer;
@@ -45,12 +46,22 @@ public static class SetupEngine
         {
             foreach (var proc in Process.GetProcessesByName("ClipboardApp"))
             {
-                try
+                using (proc)
                 {
-                    proc.Kill();
-                    proc.WaitForExit(3000);
+                    try
+                    {
+                        if (proc.CloseMainWindow() && proc.WaitForExit(2000))
+                        {
+                            continue;
+                        }
+                        if (!proc.HasExited)
+                        {
+                            proc.Kill();
+                            proc.WaitForExit(3000);
+                        }
+                    }
+                    catch { }
                 }
-                catch { }
             }
         }
         catch { }
@@ -65,25 +76,29 @@ public static class SetupEngine
         using var resourceStream = assembly.GetManifestResourceStream("payload.bin")
             ?? throw new InvalidOperationException("Embedded payload resource 'payload.bin' not found.");
 
-        using var gzipStream = new GZipStream(resourceStream, CompressionMode.Decompress);
-        using var fileStream = new FileStream(targetExe, FileMode.Create, FileAccess.Write, FileShare.None);
-
-        byte[] buffer = new byte[81920];
-        int bytesRead;
-        long totalRead = 0;
-        long estimatedTotal = 164000000;
-
-        while ((bytesRead = await gzipStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+        string stagedExe = targetExe + ".new";
+        using (var gzipStream = new GZipStream(resourceStream, CompressionMode.Decompress))
+        using (var fileStream = new FileStream(stagedExe, FileMode.Create, FileAccess.Write, FileShare.None))
         {
-            await fileStream.WriteAsync(buffer, 0, bytesRead);
-            totalRead += bytesRead;
-            if (progress != null && estimatedTotal > 0)
+            byte[] buffer = new byte[81920];
+            int bytesRead;
+            long totalRead = 0;
+            long estimatedTotal = 164000000;
+
+            while ((bytesRead = await gzipStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
             {
-                int pct = (int)Math.Min(98, (totalRead * 100) / estimatedTotal);
-                progress.Report(pct);
+                await fileStream.WriteAsync(buffer, 0, bytesRead);
+                totalRead += bytesRead;
+                if (progress != null && estimatedTotal > 0)
+                {
+                    int pct = (int)Math.Min(98, (totalRead * 100) / estimatedTotal);
+                    progress.Report(pct);
+                }
             }
+            await fileStream.FlushAsync();
         }
 
+        File.Move(stagedExe, targetExe, overwrite: true);
         progress?.Report(100);
 
         string currentExe = Environment.ProcessPath ?? "";
@@ -110,12 +125,24 @@ public static class SetupEngine
             Type? shellType = Type.GetTypeFromProgID("WScript.Shell");
             if (shellType != null)
             {
-                dynamic shell = Activator.CreateInstance(shellType)!;
-                dynamic shortcut = shell.CreateShortcut(shortcutPath);
-                shortcut.TargetPath = targetExePath;
-                shortcut.WorkingDirectory = Path.GetDirectoryName(targetExePath);
-                shortcut.Description = description;
-                shortcut.Save();
+                object? shellObj = Activator.CreateInstance(shellType);
+                object? shortcutObj = null;
+                try
+                {
+                    dynamic shell = shellObj!;
+                    shortcutObj = shell.CreateShortcut(shortcutPath);
+                    dynamic shortcut = shortcutObj!;
+                    shortcut.TargetPath = targetExePath;
+                    shortcut.WorkingDirectory = Path.GetDirectoryName(targetExePath);
+                    shortcut.IconLocation = $"{targetExePath},0";
+                    shortcut.Description = description;
+                    shortcut.Save();
+                }
+                finally
+                {
+                    if (shortcutObj != null && Marshal.IsComObject(shortcutObj)) Marshal.FinalReleaseComObject(shortcutObj);
+                    if (shellObj != null && Marshal.IsComObject(shellObj)) Marshal.FinalReleaseComObject(shellObj);
+                }
             }
         }
         catch { }
@@ -179,15 +206,21 @@ public static class SetupEngine
                     ? $"\"{uninstallExe}\" --uninstall"
                     : $"\"{targetExe}\" --uninstall";
 
-                key.SetValue("DisplayName", $"{AppName} v{AppVersion}");
+                int estimatedKb = File.Exists(targetExe)
+                    ? (int)Math.Max(1, new FileInfo(targetExe).Length / 1024)
+                    : 160000;
+
+                key.SetValue("DisplayName", AppName);
                 key.SetValue("DisplayVersion", AppVersion);
                 key.SetValue("Publisher", Publisher);
                 key.SetValue("InstallLocation", installDir);
+                key.SetValue("InstallDate", DateTime.Now.ToString("yyyyMMdd"));
                 key.SetValue("UninstallString", uninstallCmd);
+                key.SetValue("QuietUninstallString", $"\"{uninstallExe}\" --uninstall --silent");
                 key.SetValue("DisplayIcon", $"\"{targetExe}\",0");
                 key.SetValue("NoModify", 1, RegistryValueKind.DWord);
                 key.SetValue("NoRepair", 1, RegistryValueKind.DWord);
-                key.SetValue("EstimatedSize", 160000, RegistryValueKind.DWord);
+                key.SetValue("EstimatedSize", estimatedKb, RegistryValueKind.DWord);
             }
         }
         catch { }

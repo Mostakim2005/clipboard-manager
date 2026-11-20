@@ -135,7 +135,7 @@ foreach ($file in $deliverables) {
 $sumLines = foreach ($file in $deliverables) {
     "{0}  {1}" -f $hashes[[System.IO.Path]::GetFileName($file)], [System.IO.Path]::GetFileName($file)
 }
-Set-Content -Path (Join-Path $releaseDir "SHA256SUMS.txt") -Value $sumLines -Encoding UTF8
+[System.IO.File]::WriteAllLines((Join-Path $releaseDir "SHA256SUMS.txt"), [string[]]$sumLines, (New-Object System.Text.UTF8Encoding($false)))
 
 $manifest = [ordered]@{
     version   = $Version

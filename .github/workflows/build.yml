@@ -9,11 +9,11 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: build-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build:
@@ -39,6 +39,12 @@ jobs:
           $version = $match.Groups[1].Value
           "version=$version" >> $env:GITHUB_OUTPUT
           Write-Host "Version: $version"
+          if ($env:GITHUB_REF -like "refs/tags/v*") {
+            $tagVer = $env:GITHUB_REF.Substring("refs/tags/v".Length)
+            if ($tagVer -ne $version) {
+              throw "Tag version 'v$tagVer' does not match Directory.Build.props version '$version'."
+            }
+          }
 
       - name: Restore
         run: dotnet restore ClipboardApp.sln

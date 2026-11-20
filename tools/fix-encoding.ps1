@@ -40,11 +40,12 @@ if (-not $Path) {
     $Path += Get-ChildItem $repoRoot -Filter *.md -File | ForEach-Object { $_.FullName }
     $Path += Get-ChildItem (Join-Path $repoRoot "docs") -Filter *.md -File -Recurse |
         ForEach-Object { $_.FullName }
+    $Path += Get-ChildItem (Join-Path $repoRoot "src") -Filter *.cs -File -Recurse |
+        ForEach-Object { $_.FullName }
 }
 
-# Windows-1252 is the code page Windows uses when it misreads UTF-8. Characters
-# 0x80-0x9F are the give-away: they decode to €, ‚, ƒ, „, …, †, ‡, ˆ, ‰, Š, ‹, Œ, Ž,
-# ‘, ’, “, ”, •, –, —, ˜, ™, š, ›, œ, ž, Ÿ — which is exactly what we see.
+# Register CodePagesEncodingProvider so Windows-1252 works on PowerShell 7+ as well as PS 5.1.
+[System.Text.Encoding]::RegisterProvider([System.Text.CodePagesEncodingProvider]::Instance)
 $cp1252 = [System.Text.Encoding]::GetEncoding(1252)
 $utf8Strict = New-Object System.Text.UTF8Encoding($false, $true)
 

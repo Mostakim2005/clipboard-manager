@@ -7,6 +7,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <!-- Version, AssemblyVersion, FileVersion come from /Directory.Build.props. -->
+    <ApplicationIcon>..\ClipboardApp.WinForms\Resources\app.ico</ApplicationIcon>
     <Product>ClipboardApp Setup</Product>
     <Company>OpenCode</Company>
     <Description>ClipboardApp Windows Setup Engine</Description>

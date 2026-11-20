@@ -73,7 +73,7 @@ foreach ($artifact in $manifest.artifacts) {
 if (Test-Path $portablePath) {
     $fileVersion = (Get-Item $portablePath).VersionInfo.FileVersion
     $productVersion = (Get-Item $portablePath).VersionInfo.ProductVersion
-    if ($fileVersion -and -not $fileVersion.StartsWith($Version)) {
+    if ([string]::IsNullOrWhiteSpace($fileVersion) -or ($fileVersion -ne $Version -and -not $fileVersion.StartsWith("$Version."))) {
         $failures.Add("portable executable reports version '$fileVersion' but should be $Version")
     }
     else {
